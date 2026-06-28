@@ -647,9 +647,7 @@
 
             database.ref('participantes/' + chaveFoneAlvo + '/palpites').once('value').then((snapshot) => {
                 const palpites = snapshot.val() || {};
-                const agora = new Date();
-                const dezMinutos = 10 * 60 * 1000;
-
+                
                 modoEspiaoAtivo = true;
                 alternarAbas("palpites");
                 renderizarJogosRodadaAtiva(); 
@@ -661,9 +659,6 @@
                 if (!rodadasBolao[rodadaAtiva]) return;
 
                 rodadasBolao[rodadaAtiva].forEach(jogo => {
-                    const dataJogo = new Date(jogo.data);
-                    const limiteTrava = new Date(dataJogo.getTime() - dezMinutos);
-                    
                     const input1 = document.getElementById(`p1-${jogo.id}`);
                     const input2 = document.getElementById(`p2-${jogo.id}`);
                     const statusDiv = document.getElementById(`status-${jogo.id}`);
@@ -674,22 +669,13 @@
                     input1.disabled = true;
                     input2.disabled = true;
 
-                    if (agora >= limiteTrava) {
-                        input1.value = palpites[`p1-${jogo.id}`] !== undefined ? palpites[`p1-${jogo.id}`] : "";
-                        input2.value = palpites[`p2-${jogo.id}`] !== undefined ? palpites[`p2-${jogo.id}`] : "";
-                        if (cardDiv) cardDiv.classList.add("travado");
-                        if (statusDiv) {
-                            statusDiv.innerText = "🔒 Palpite travado (visível)";
-                            statusDiv.className = "status-jogo status-travado";
-                        }
-                    } else {
-                        input1.value = "";
-                        input2.value = "";
-                        if (cardDiv) cardDiv.classList.remove("travado");
-                        if (statusDiv) {
-                            statusDiv.innerText = "🙈 Oculto até travar!";
-                            statusDiv.className = "status-jogo status-aberto";
-                        }
+                    input1.value = palpites[`p1-${jogo.id}`] !== undefined ? palpites[`p1-${jogo.id}`] : "";
+                    input2.value = palpites[`p2-${jogo.id}`] !== undefined ? palpites[`p2-${jogo.id}`] : "";
+                    
+                    if (cardDiv) cardDiv.classList.add("travado");
+                    if (statusDiv) {
+                        statusDiv.innerText = "🔒 Palpite visualizado";
+                        statusDiv.className = "status-jogo status-travado";
                     }
                 });
             });

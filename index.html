@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bolão Oficial - Copa 2026</title>
+    <title>Brasileirão</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link class="pwa" rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1a1d24">
@@ -74,7 +74,7 @@
 
         .box-whitelist { background-color: #252a34; padding: 15px; border-radius: 8px; margin-top: 15px; border: 1px dashed #3a4252; }
         .lista-whitelist { max-height: 150px; overflow-y: auto; margin-top: 10px; background: #151921; padding: 10px; border-radius: 6px; text-align: left; font-size: 13px; }
-        .item-whitelist { display: flex; justify-content:-space-between; padding: 5px 0; border-bottom: 1px solid #252a34; align-items: center; }
+        .item-whitelist { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #252a34; align-items: center; }
         .item-whitelist button { width: auto; padding: 2px 6px; font-size: 11px; margin-bottom: 0; }
 
         .form-admin-jogos { display: flex; flex-direction: column; gap: 2px; text-align: left; margin-top: 10px; }
@@ -87,7 +87,7 @@
 <body>
 
     <div id="tela-login" class="container">
-        <h2>Bolão Oficial - Copa 2026</h2>
+        <h2>Brasileirão</h2>
         <p id="instrucoes-login">Para entrar, digite seu número de telefone cadastrado pelo administrador:</p>
         
         <input type="tel" id="input-telefone" placeholder="Telefone (DDD + Número) ex: 24993148000">
@@ -229,7 +229,24 @@
         document.addEventListener("DOMContentLoaded", () => {
             garantirTelefonesAdminNoBanco();
             ouvirRodadasDoFirebase(); 
+            
+            // Força a ativação do botão de login mesmo sem carregar a lista do banco
+            document.getElementById('btn-entrar').addEventListener('click', () => {
+                const tel = document.getElementById('input-telefone').value.trim();
+                if (tel) {
+                    // Simula a tentativa de entrar
+                    processarEntrada(tel); 
+                }
+            });
         });
+
+        // Função de entrada forçada (exemplo lógico que deve estar no seu código original)
+        function processarEntrada(telefone) {
+            telefoneUsuarioLogado = telefone;
+            // Se o seu código original não estiver disparando a verificação corretamente, 
+            // este clique agora garante o disparo da função de login.
+            verificarAcesso(telefone);
+        }
         
         function ouvirRodadasDoFirebase() {
             database.ref('rodadas').on('value', snapshot => {

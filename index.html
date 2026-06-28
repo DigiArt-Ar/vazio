@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bolão Oficial - Bolão Rodadas do Brasileião</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.0.0/css/flag-icons.min.css"/>
     <link class="pwa" rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1a1d24">
     
@@ -58,7 +57,7 @@
         .confronto { display: flex; justify-content: space-between; align-items: center; }
         .time { width: 38%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; text-align: center; gap: 6px; }
         
-        .bandeira { font-size: 24px; border-radius: 50%; background-size: cover; background-position: center; box-shadow: 0 2px 4px rgba(0,0,0,0.3); border: 1px solid #3a4252; width: 1.33333333em; height: 1em; }
+        .bandeira { width: 30px; height: 30px; object-fit: contain; }
 
         .placar-inputs { display: flex; gap: 6px; align-items: center; }
         .placar-inputs input { width: 42px; height: 38px; font-size: 18px; font-weight: bold; margin-bottom: 0; }
@@ -123,7 +122,7 @@
             
             <div class="rodadas-tabs" id="seletor-rodadas"></div>
 
-            <p class="aviso-trava" id="aviso-geral">Cada jogo trava individualmente 10 minutos antes do início!</p>
+            <p class="aviso-trava" id="aviso-geral">Cada jogo trava individualmente 10 minutos antes do início do primeiro jogo!</p>
             
             <div id="lista-jogos"></div>
             
@@ -168,7 +167,7 @@
                             <input type="text" id="adm-jogo-nome1" placeholder="Nome (Ex: Brasil)">
                         </div>
                         <div>
-                            <input type="text" id="adm-jogo-sigla1" placeholder="Bandeira CSS (Ex: br)">
+                            <input type="text" id="adm-jogo-sigla1" placeholder="Nome do arquivo (Ex: brasil)">
                         </div>
                     </div>
 
@@ -181,7 +180,7 @@
                             <input type="text" id="adm-jogo-nome2" placeholder="Nome (Ex: França)">
                         </div>
                         <div>
-                            <input type="text" id="adm-jogo-sigla2" placeholder="Bandeira CSS (Ex: fr)">
+                            <input type="text" id="adm-jogo-sigla2" placeholder="Nome do arquivo (Ex: franca)">
                         </div>
                     </div>
 
@@ -451,7 +450,7 @@
                     <div class="info-jogo">Grupo ${jogo.grupo} — Às ${horaFormatada}</div>
                     <div class="confronto">
                         <div class="time">
-                            <span class="fi fi-${jogo.sigla1} bandeira"></span>
+                            <img src="https://digiart-ar.github.io/bolao/escudos/${jogo.sigla1}.png" class="bandeira" onerror="this.style.display='none'">
                             <span>${jogo.t1}</span>
                         </div>
                         <div class="placar-inputs">
@@ -460,7 +459,7 @@
                             <input type="number" id="p2-${jogo.id}" min="0" placeholder="-">
                         </div>
                         <div class="time">
-                            <span class="fi fi-${jogo.sigla2} bandeira"></span>
+                            <img src="https://digiart-ar.github.io/bolao/escudos/${jogo.sigla2}.png" class="bandeira" onerror="this.style.display='none'">
                             <span>${jogo.t2}</span>
                         </div>
                     </div>
@@ -581,32 +580,44 @@
         }
 
         function atualizarEstadoDasTravasEInputs() {
-            if (isAdmin || !rodadasBolao[rodadaAtiva]) return;
+            if (isAdmin || !rodadasBolao[rodadaAtiva] || rodadasBolao[rodadaAtiva].length === 0) return;
 
             database.ref('.info/serverTimeOffset').once('value', (snapshot) => {
                 const offset = snapshot.val() || 0;
                 const agoraReal = new Date(Date.now() + offset);
-                const trintaMinutos = 30 * 60 * 1000;
+                
+                // Trava 10 minutos antes do primeiro jogo da rodada
+                const dezMinutos = 10 * 60 * 1000;
+                const primeiroJogoData = new Date(rodadasBolao[rodadaAtiva][0].data);
+                const limiteTravaRodada = new Date(primeiroJogoData.getTime() - dezMinutos);
+                
                 const btnSalvar = document.getElementById("btn-salvar-palpites");
+                const estaBloqueado = agoraReal >= limiteTravaRodada;
 
                 if (modoEspiaoAtivo) {
                     if (btnSalvar) btnSalvar.classList.add("hidden");
-                    return;
+                } else {
+                    if (btnSalvar) {
+                        btnSalvar.classList.toggle("hidden", estaBloqueado);
+                        btnSalvar.className = "btn-sucesso";
+                        btnSalvar.innerText = "Salvar palpites desta rodada";
+                    }
                 }
 
-                if (btnSalvar) {
-                    btnSalvar.classList.remove("hidden");
-                    btnSalvar.className = "btn-sucesso";
-                    btnSalvar.innerText = "Salvar palpites desta rodada";
-                }
                 document.getElementById("btn-cancelar-admin").classList.add("hidden");
-                document.getElementById("aviso-geral").innerText = "Cada jogo trava individualmente 30 minutos antes do início!";
-                document.getElementById("aviso-geral").style.color = "#ffb300";
+                const avisoGeral = document.getElementById("aviso-geral");
+                
+                if (estaBloqueado) {
+                    avisoGeral.innerText = "🔒 Rodada bloqueada! (Trava de 10 minutos antes do 1º jogo atingida)";
+                    avisoGeral.style.color = "#ff3d00";
+                } else {
+                    const diff = limiteTravaRodada - agoraReal;
+                    const mins = Math.ceil(diff / (1000 * 60));
+                    avisoGeral.innerText = `⚠️ A rodada trava por completo em ${mins} minutos (10min antes do 1º jogo)!`;
+                    avisoGeral.style.color = "#ffb300";
+                }
 
                 rodadasBolao[rodadaAtiva].forEach(jogo => {
-                    const dataJogo = new Date(jogo.data);
-                    const limiteTrava = new Date(dataJogo.getTime() - trintaMinutos);
-                    
                     const input1 = document.getElementById(`p1-${jogo.id}`);
                     const input2 = document.getElementById(`p2-${jogo.id}`);
                     const statusDiv = document.getElementById(`status-${jogo.id}`);
@@ -614,32 +625,14 @@
 
                     if (!input1 || !input2) return;
 
-                    if (agoraReal >= limiteTrava) {
-                        input1.disabled = true;
-                        input2.disabled = true;
-                        if (cardDiv) cardDiv.classList.add("travado");
-                        if (statusDiv) {
-                            statusDiv.innerText = "🔒 Palpites bloqueados";
-                            statusDiv.className = "status-jogo status-travado";
-                        }
-                    } else {
-                        input1.disabled = false;
-                        input2.disabled = false;
-                        if (cardDiv) cardDiv.classList.remove("travado");
-                        
-                        const diferencaMs = limiteTrava - agoraReal;
-                        const totalMinutos = Math.ceil(diferencaMs / (1000 * 60));
-                        
-                        if (statusDiv) {
-                            if(totalMinutos > 60) {
-                                const horas = Math.floor(totalMinutos / 60);
-                                const mins = totalMinutos % 60;
-                                statusDiv.innerText = `🔓 Aberto (Trava em ${horas}h ${mins}min)`;
-                            } else {
-                                statusDiv.innerText = `🔓 Aberto (Trava em ${totalMinutos} min)`;
-                            }
-                            statusDiv.className = "status-jogo status-aberto";
-                        }
+                    input1.disabled = estaBloqueado;
+                    input2.disabled = estaBloqueado;
+
+                    if (cardDiv) cardDiv.classList.toggle("travado", estaBloqueado);
+                    
+                    if (statusDiv) {
+                        statusDiv.innerText = estaBloqueado ? "🔒 Rodada Encerrada" : "🔓 Aberto";
+                        statusDiv.className = estaBloqueado ? "status-jogo status-travado" : "status-jogo status-aberto";
                     }
                 });
             });

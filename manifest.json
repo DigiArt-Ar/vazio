@@ -1,0 +1,18 @@
+{
+  "short_name": "Bolão Brasileirão",
+  "name": "Bolão Rodadas do Brasileirão - DigiArt",
+  "description": "Sistema de palpites e bolão do Brasileirão",
+  "icons": [
+    {
+      "src": "ico.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#0f1115",
+  "theme-color": "#0f1115",
+  "display": "standalone",
+  "orientation": "portrait"
+}

@@ -515,40 +515,43 @@
                 return;
             }
 
-            database.ref('participantes/' + foneInput).once('value').then(snapshot => {
-                if (snapshot.exists() && snapshot.val().nome) {
-                    const dadosUsuario = snapshot.val();
-                    localStorage.setItem("bolao_telefone", foneInput);
-                    localStorage.setItem("bolao_nome_exibicao", dadosUsuario.nome);
-                    telefoneUsuarioLogado = foneInput;
-                    mostrarTelaPrincipal(dadosUsuario.nome);
-                } else {
-                    database.ref('telefones_autorizados/' + foneInput).once('value').then(snapAuth => {
-                        if (snapAuth.exists()) {
-                            if (snapAuth.val().ativo === false) {
-                                alert("Acesso desabilitado pelo administrador.");
-                                return;
-                            }
-                            if (!nomeInput) {
-                                alert("Este é o seu primeiro acesso! Digite o nome ou apelido que quer usar no ranking.");
-                                return;
-                            }
-                            localStorage.setItem("bolao_telefone", foneInput);
-                            localStorage.setItem("bolao_nome_exibicao", nomeInput);
-                            telefoneUsuarioLogado = foneInput;
-                            database.ref('participantes/' + foneInput).set({
-                                nome: nomeInput,
-                                telefone: foneInput,
-                                pontuacoes: 0,
-                                exatos: 0
-                            }).then(() => {
-                                mostrarTelaPrincipal(nomeInput);
-                            });
-                        } else {
-                            alert("Acesso negado! Seu número de celular não consta na lista de participantes autorizados.");
-                        }
-                    });
+            // Verifica sempre o status no banco antes de permitir o login
+            database.ref('telefones_autorizados/' + foneInput).once('value').then(snapAuth => {
+                if (!snapAuth.exists()) {
+                    alert("Acesso negado! Seu número não consta na lista de autorizados.");
+                    return;
                 }
+
+                const dadosAuth = snapAuth.val();
+                if (dadosAuth.ativo === false) {
+                    alert("⚠️ Seu acesso foi desabilitado pelo administrador. Entre em contato com o responsável.");
+                    return;
+                }
+
+                // Se chegou aqui, está autorizado. Prossegue com o login/cadastro
+                database.ref('participantes/' + foneInput).once('value').then(snapshot => {
+                    if (snapshot.exists() && snapshot.val().nome) {
+                        const dadosUsuario = snapshot.val();
+                        localStorage.setItem("bolao_telefone", foneInput);
+                        localStorage.setItem("bolao_nome_exibicao", dadosUsuario.nome);
+                        telefoneUsuarioLogado = foneInput;
+                        mostrarTelaPrincipal(dadosUsuario.nome);
+                    } else {
+                        if (!nomeInput) {
+                            alert("Este é o seu primeiro acesso! Digite o nome ou apelido que quer usar no ranking.");
+                            return;
+                        }
+                        localStorage.setItem("bolao_telefone", foneInput);
+                        localStorage.setItem("bolao_nome_exibicao", nomeInput);
+                        telefoneUsuarioLogado = foneInput;
+                        database.ref('participantes/' + foneInput).set({
+                            nome: nomeInput,
+                            telefone: foneInput,
+                            pontuacoes: 0,
+                            exatos: 0
+                        }).then(() => mostrarTelaPrincipal(nomeInput));
+                    }
+                });
             });
         }
 
@@ -718,14 +721,17 @@
                 const container = document.getElementById("adm-lista-fones");
                 container.innerHTML = "";
                 Object.keys(fones).forEach(fone => {
+                    const isMaster = (fone === "24981035118");
                     const ativo = fones[fone].ativo !== false;
                     const item = document.createElement("div");
                     item.className = "item-whitelist";
                     item.innerHTML = `
-                        <span>📞 ${fone}</span>
+                        <span>📞 ${fone} ${isMaster ? '<strong>(MASTER)</strong>' : ''}</span>
                         <div>
-                            <button class="${ativo ? 'btn-secundario' : 'btn-sucesso'}" onclick="toggleStatusFone('${fone}', ${ativo})">${ativo ? 'Desab.' : 'Ativar'}</button>
-                            <button class="btn-alerta" onclick="removerFoneAdmin('${fone}')">Excluir</button>
+                            ${!isMaster ? `
+                                <button class="${ativo ? 'btn-secundario' : 'btn-sucesso'}" onclick="toggleStatusFone('${fone}', ${ativo})">${ativo ? 'Desab.' : 'Ativar'}</button>
+                                <button class="btn-alerta" onclick="removerFoneAdmin('${fone}')">Excluir</button>
+                            ` : '<span style="font-size:10px; color:#666;">Protegido</span>'}
                         </div>
                     `;
                     container.appendChild(item);
@@ -734,11 +740,12 @@
         }
 
         window.toggleStatusFone = function(fone, statusAtual) {
+            if (fone === "24981035118") return; // Proteção extra
             database.ref('telefones_autorizados/' + fone + '/ativo').set(!statusAtual);
         };
 
         window.removerFoneAdmin = function(fone) {
-            if (TELEFONES_ADMIN_PADRAO.includes(fone)) return alert("Não pode remover o admin master!");
+            if (fone === "24981035118") return alert("Não pode remover o admin master!");
             if(confirm(`Deseja remover ${fone}?`)) {
                 database.ref('telefones_autorizados/' + fone).remove();
                 database.ref('participantes/' + fone).remove(); 

@@ -2,99 +2,65 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Brasileirão</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link class="pwa" rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#1a1d24">
-    
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background-color: #0f1115; color: #ffffff; display: flex; justify-content: center; padding: 15px; }
-        .container { width: 100%; max-width: 500px; background-color: #1a1d24; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-        .hidden { display: none !important; }
-        h2, h3 { margin-bottom: 15px; text-align: center; }
-        p { margin-bottom: 15px; color: #ccc; text-align: center; font-size: 14px; }
-        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2a2f3a; padding-bottom: 15px; margin-bottom: 15px; }
-        #btn-admin { background: none; border: none; color: #888; font-size: 20px; cursor: pointer; transition: color 0.2s; }
-        #btn-admin:hover { color: #fff; }
-        input[type="text"], input[type="number"], input[type="tel"], input[type="datetime-local"], select { background-color: #252a34; border: 1px solid #3a4252; color: #fff; padding: 12px; border-radius: 6px; text-align: center; outline: none; width: 100%; margin-bottom: 15px; font-size: 16px; }
-        button { color: white; border: none; padding: 14px; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer; width: 100%; transition: background 0.2s; margin-bottom: 10px; }
-        .btn-sucesso { background-color: #00c853; }
-        .btn-sucesso:hover { background-color: #00a844; }
-        .btn-secundario { background-color: #4b5563; }
-        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
-        .tab-btn { background-color: #252a34; color: #aaa; padding: 10px; font-size: 14px; width: 50%; border-radius: 6px; }
-        .tab-btn.active { background-color: #007bff; color: #fff; }
-        .box-whitelist { background-color: #252a34; padding: 15px; border-radius: 8px; margin-top: 15px; border: 1px dashed #3a4252; }
-        .lista-whitelist { max-height: 150px; overflow-y: auto; margin-top: 10px; background: #151921; padding: 10px; border-radius: 6px; font-size: 13px; }
+        body { background: #0f1115; color: white; font-family: sans-serif; display: flex; justify-content: center; padding: 20px; }
+        .container { width: 100%; max-width: 400px; background: #1a1d24; padding: 20px; border-radius: 10px; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 5px; border: none; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: #00c853; border: none; color: white; font-weight: bold; cursor: pointer; border-radius: 5px; }
     </style>
 </head>
 <body>
 
-    <div id="tela-login" class="container">
-        <h2>Brasileirão</h2>
-        <input type="tel" id="input-telefone" placeholder="Telefone (DDD + Número)">
-        <div id="bloco-nome-primeiro-acesso" class="hidden">
-            <input type="text" id="input-nome" placeholder="Seu nome ou apelido">
-        </div>
-        <button id="btn-entrar" class="btn-sucesso">Confirmar e entrar</button>
-    </div>
+<div id="tela-login" class="container">
+    <h2>Brasileirão</h2>
+    <input type="tel" id="input-telefone" placeholder="Telefone (ex: 24993148000)">
+    <input type="text" id="input-nome" placeholder="Seu nome (apenas para novo acesso)" class="hidden">
+    <button id="btn-entrar" onclick="tentarEntrar()">ENTRAR</button>
+</div>
 
-    <div id="tela-principal" class="container hidden">
-        <header>
-            <span id="boas-vindas">Olá, <strong id="nome-usuario"></strong></span>
-            <button id="btn-admin"><i class="fas fa-cog"></i></button>
-        </header>
-        <div id="lista-jogos"></div>
-        <button id="btn-cancelar-admin" class="btn-secundario hidden">Sair do modo administrador</button>
-    </div>
+<div id="tela-principal" class="container" style="display:none;">
+    <h2>Bem-vindo, <span id="nome-usuario"></span>!</h2>
+</div>
 
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyA2AOf9zLnPhiIwARN6nm0UPvt4uvBMw6s",
-            authDomain: "bolao-de-rodadas.firebaseapp.com",
-            databaseURL: "https://bolao-de-rodadas-default-rtdb.firebaseio.com/",
-            projectId: "bolao-de-rodadas",
-            storageBucket: "bolao-de-rodadas.firebasestorage.app",
-            messagingSenderId: "990193977287",
-            appId: "1:990193977287:web:36cf955446744b428dfbe2"
-        };
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyA2AOf9zLnPhiIwARN6nm0UPvt4uvBMw6s",
+        authDomain: "bolao-de-rodadas.firebaseapp.com",
+        databaseURL: "https://bolao-de-rodadas-default-rtdb.firebaseio.com/",
+        projectId: "bolao-de-rodadas",
+        storageBucket: "bolao-de-rodadas.firebasestorage.app",
+        messagingSenderId: "990193977287",
+        appId: "1:990193977287:web:36cf955446744b428dfbe2"
+    };
 
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
-        const ADMS = ["24981035118", "24992788226"];
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-        // Botão de Login robusto
-        document.getElementById('btn-entrar').addEventListener('click', () => {
-            const tel = document.getElementById('input-telefone').value.trim();
-            if (!tel) { alert("Digite o telefone!"); return; }
-
-            database.ref('usuarios/' + tel).once('value').then(snapshot => {
+    function tentarEntrar() {
+        const tel = document.getElementById('input-telefone').value.trim();
+        if(!tel) { alert("Digite o telefone!"); return; }
+        
+        console.log("Consultando banco para:", tel);
+        
+        db.ref('usuarios/' + tel).once('value')
+            .then(snapshot => {
                 if (snapshot.exists()) {
-                    entrarNoSistema(tel, snapshot.val().nome);
-                } else if (ADMS.includes(tel)) {
-                    document.getElementById('bloco-nome-primeiro-acesso').classList.remove('hidden');
-                    document.getElementById('btn-entrar').innerText = "Salvar e Entrar";
-                    document.getElementById('btn-entrar').onclick = () => {
-                        const nome = document.getElementById('input-nome').value;
-                        if (!nome) { alert("Digite um nome!"); return; }
-                        database.ref('usuarios/' + tel).set({ nome: nome }).then(() => entrarNoSistema(tel, nome));
-                    };
+                    document.getElementById('tela-login').style.display = 'none';
+                    document.getElementById('tela-principal').style.display = 'block';
+                    document.getElementById('nome-usuario').innerText = snapshot.val().nome;
                 } else {
-                    alert("Número não autorizado.");
+                    alert("Número não encontrado. Se for seu primeiro acesso, verifique se o número está na lista de autorizados.");
                 }
+            })
+            .catch(err => {
+                alert("Erro ao conectar ao Firebase: " + err.message);
+                console.error(err);
             });
-        });
-
-        function entrarNoSistema(tel, nome) {
-            document.getElementById('tela-login').classList.add('hidden');
-            document.getElementById('tela-principal').classList.remove('hidden');
-            document.getElementById('nome-usuario').innerText = nome;
-        }
-    </script>
+    }
+</script>
 </body>
 </html>

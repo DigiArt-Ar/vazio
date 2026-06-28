@@ -122,7 +122,7 @@
             
             <div class="rodadas-tabs" id="seletor-rodadas"></div>
 
-            <p class="aviso-trava" id="aviso-geral">Cada jogo trava individualmente 10 minutos antes do início do primeiro jogo!</p>
+            <p class="aviso-trava" id="aviso-geral">A rodada trava 10 minutos antes do início do primeiro jogo!</p>
             
             <div id="lista-jogos"></div>
             
@@ -586,7 +586,6 @@
                 const offset = snapshot.val() || 0;
                 const agoraReal = new Date(Date.now() + offset);
                 
-                // Trava 10 minutos antes do primeiro jogo da rodada
                 const dezMinutos = 10 * 60 * 1000;
                 const primeiroJogoData = new Date(rodadasBolao[rodadaAtiva][0].data);
                 const limiteTravaRodada = new Date(primeiroJogoData.getTime() - dezMinutos);
@@ -608,7 +607,7 @@
                 const avisoGeral = document.getElementById("aviso-geral");
                 
                 if (estaBloqueado) {
-                    avisoGeral.innerText = "🔒 Rodada bloqueada! (Trava de 10 minutos antes do 1º jogo atingida)";
+                    avisoGeral.innerText = "🔒 Rodada bloqueada! (Trava de 10 minutos antes do início do primeiro jogo atingida)";
                     avisoGeral.style.color = "#ff3d00";
                 } else {
                     const diff = limiteTravaRodada - agoraReal;

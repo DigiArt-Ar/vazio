@@ -649,7 +649,7 @@
             database.ref('participantes/' + chaveFoneAlvo + '/palpites').once('value').then((snapshot) => {
                 const palpites = snapshot.val() || {};
                 const agora = new Date();
-                const trintaMinutos = 30 * 60 * 1000;
+                const dezMinutos = 10 * 60 * 1000;
 
                 modoEspiaoAtivo = true;
                 alternarAbas("palpites");
@@ -663,7 +663,7 @@
 
                 rodadasBolao[rodadaAtiva].forEach(jogo => {
                     const dataJogo = new Date(jogo.data);
-                    const limiteTrava = new Date(dataJogo.getTime() - trintaMinutos);
+                    const limiteTrava = new Date(dataJogo.getTime() - dezMinutos);
                     
                     const input1 = document.getElementById(`p1-${jogo.id}`);
                     const input2 = document.getElementById(`p2-${jogo.id}`);

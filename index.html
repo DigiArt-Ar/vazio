@@ -253,8 +253,8 @@
                         Object.keys(resultados).forEach(key => {
                             const idJogo = key.replace('p1-', '').replace('p2-', '');
                             if (palpites[`p1-${idJogo}`] !== undefined && 
-                                palpites[`p1-${idJogo}`] == resultados[`p1-${idJogo}`] && 
-                                palpites[`p2-${idJogo}`] == resultados[`p2-${idJogo}`]) {
+                                Number(palpites[`p1-${idJogo}`]) === Number(resultados[`p1-${idJogo}`]) && 
+                                Number(palpites[`p2-${idJogo}`]) === Number(resultados[`p2-${idJogo}`])) {
                                 pontosRodada += 3; 
                             }
                         });

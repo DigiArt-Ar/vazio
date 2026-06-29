@@ -134,11 +134,6 @@
                         ➕ Criar Nova Rodada
                     </button>
                 </div>
-                
-                <button id="btn-salvar-resultados-admin" class="btn-alerta" style="margin-bottom: 20px;">
-                    <i class="fas fa-save"></i> Salvar resultados oficiais (admin)
-                </button>
-
                 <h4>➕ Criar Nova Rodada / Adicionar Jogo</h4>
                 <div class="form-admin-jogos">
                     <div class="row-dupla">
@@ -229,7 +224,9 @@
         const database = firebase.database();
 
         const TELEFONES_ADMIN_PADRAO = ["24981035118"];
+
         let rodadasBolao = {};
+
         const SENHA_ADMIN_PRE_ESTABELECIDA = "1052";
         let isAdmin = false;
         let modoEspiaoAtivo = false;
@@ -238,49 +235,12 @@
         let rodadaAtiva = "1"; 
         let filtroRankingAtivo = "geral";
 
-        function calcularRankingDaRodada(rodada) {
-            database.ref('resultados_oficiais/' + rodada).once('value').then(snapResultados => {
-                const resultados = snapResultados.val();
-                if (!resultados) return;
-
-                database.ref('participantes').once('value').then(snapParticipantes => {
-                    const participantes = snapParticipantes.val() || {};
-                    
-                    Object.keys(participantes).forEach(fone => {
-                        let pontosRodada = 0;
-                        const palpites = participantes[fone].palpites || {};
-
-                        Object.keys(resultados).forEach(key => {
-                            const idJogo = key.replace('p1-', '').replace('p2-', '');
-                            if (palpites[`p1-${idJogo}`] !== undefined && 
-                                Number(palpites[`p1-${idJogo}`]) === Number(resultados[`p1-${idJogo}`]) && 
-                                Number(palpites[`p2-${idJogo}`]) === Number(resultados[`p2-${idJogo}`])) {
-                                pontosRodada += 3; 
-                            }
-                        });
-                        database.ref('participantes/' + fone + '/pontuacoes').set(pontosRodada);
-                    });
-                    alert("Resultados salvos e ranking atualizado!");
-                });
-            });
-        }
-
-        function salvarResultadosOficiaisAdmin() {
-            const resultados = {};
-            const jogos = rodadasBolao[rodadaAtiva] || [];
-            
-            jogos.forEach(jogo => {
-                const p1 = document.getElementById(`p1-${jogo.id}`).value;
-                const p2 = document.getElementById(`p2-${jogo.id}`).value;
-                if (p1 !== "" && p2 !== "") {
-                    resultados[`p1-${jogo.id}`] = parseInt(p1);
-                    resultados[`p2-${jogo.id}`] = parseInt(p2);
+        function executarEmTodosOsJogos(callback) {
+            Object.keys(rodadasBolao).forEach(r => {
+                if (Array.isArray(rodadasBolao[r])) {
+                    rodadasBolao[r].forEach(jogo => callback(jogo, r));
                 }
             });
-
-            database.ref('resultados_oficiais/' + rodadaAtiva).set(resultados).then(() => {
-                calcularRankingDaRodada(rodadaAtiva);
-            }).catch(e => alert("Erro ao salvar: " + e.message));
         }
 
         document.addEventListener("DOMContentLoaded", () => {
@@ -318,16 +278,16 @@
                 if (numero && !isNaN(numero)) {
                     database.ref('rodadas/' + numero).set([]).then(() => {
                         alert("Rodada " + numero + " criada com sucesso!");
+                    }).catch((error) => {
+                        alert("Erro ao criar rodada: " + error.message);
                     });
+                } else {
+                    alert("Por favor, digite um número válido.");
                 }
             });
 
-            document.getElementById("btn-salvar-resultados-admin").addEventListener("click", salvarResultadosOficiaisAdmin);
-
             document.getElementById("adm-btn-add-fone").addEventListener("click", adicionarTelefoneNaListaAdmin);
             document.getElementById("adm-btn-salvar-jogo").addEventListener("click", adicionarNovoJogoAdmin);
-
-            document.getElementById("btn-salvar-palpites").addEventListener("click", salvarPalpitesUsuario);
 
             document.getElementById("btn-fechar-spy").addEventListener("click", () => {
                 modoEspiaoAtivo = false;
@@ -342,25 +302,43 @@
             document.getElementById("tab-ranking").addEventListener("click", () => alternarAbas("ranking"));
 
             document.getElementById("btn-entrar").addEventListener("click", processarTentativaLogin);
+
+            document.getElementById("btn-salvar-palpites").addEventListener("click", () => {
+                if (isAdmin) {
+                    salvarResultadosOficiaisAdmin();
+                } else {
+                    salvarPalpitesUsuario();
+                }
+            });
             
             setInterval(atualizarEstadoDasTravasEInputs, 4000);
         });
 
         function ouvirRodadasDoFirebase() {
             database.ref('rodadas').on('value', snapshot => {
-                rodadasBolao = snapshot.val() || {};
+                const dados = snapshot.val();
+                if (!dados) {
+                    rodadasBolao = {};
+                } else {
+                    rodadasBolao = dados;
+                }
+
                 Object.keys(rodadasBolao).forEach(r => {
                     if (Array.isArray(rodadasBolao[r])) {
                         rodadasBolao[r].sort((a, b) => new Date(a.data) - new Date(b.data));
                     }
                 });
+
                 renderizarAbasDeRodadasDinamicas();
                 renderizarAbasDeRankingDinamicas();
+                
                 if (isAdmin) {
                     liberarModoAdminVisual();
                 } else {
                     renderizarJogosRodadaAtiva();
-                    if (telefoneUsuarioLogado) puxarMeusPalpitesDoFirebase();
+                    if (telefoneUsuarioLogado) {
+                        puxarMeusPalpitesDoFirebase();
+                    }
                 }
             });
         }
@@ -368,17 +346,32 @@
         function renderizarAbasDeRodadasDinamicas() {
             const seletor = document.getElementById("seletor-rodadas");
             seletor.innerHTML = "";
+            
             const chavesRodadas = Object.keys(rodadasBolao).sort((a, b) => Number(a) - Number(b));
-            if (!chavesRodadas.includes(rodadaAtiva) && chavesRodadas.length > 0) rodadaAtiva = chavesRodadas[0];
+            
+            if (!chavesRodadas.includes(rodadaAtiva) && chavesRodadas.length > 0) {
+                rodadaAtiva = chavesRodadas[0];
+            }
+
             chavesRodadas.forEach(r => {
                 const btn = document.createElement("button");
-                btn.className = `rodada-btn ${r === rodadaAtiva ? 'active' : ''}`;
-                btn.innerText = `Rodada ${r}`;
-                btn.addEventListener("click", () => {
+                btn.className = rodada-btn ${r === rodadaAtiva ? 'active' : ''};
+                btn.setAttribute("data-rodada", r);
+                btn.innerText = Rodada ${r};
+                
+                btn.addEventListener("click", (e) => {
+                    document.querySelectorAll("#seletor-rodadas .rodada-btn").forEach(b => b.classList.remove("active"));
+                    btn.classList.add("active");
                     rodadaAtiva = r;
-                    renderizarAbasDeRodadasDinamicas();
-                    if (modoEspiaoAtivo) document.getElementById("btn-fechar-spy").click();
-                    else { renderizarJogosRodadaAtiva(); puxarMeusPalpitesDoFirebase(); }
+                    
+                    if (isAdmin) {
+                        liberarModoAdminVisual();
+                    } else if (modoEspiaoAtivo) {
+                        document.getElementById("btn-fechar-spy").click(); 
+                    } else {
+                        renderizarJogosRodadaAtiva();
+                        puxarMeusPalpitesDoFirebase();
+                    }
                 });
                 seletor.appendChild(btn);
             });
@@ -388,46 +381,81 @@
             const seletor = document.getElementById("seletor-ranking-filtros");
             if (!seletor) return;
             seletor.innerHTML = "";
+
             const btnGeral = document.createElement("button");
-            btnGeral.className = `rank-tab-btn ${filtroRankingAtivo === 'geral' ? 'active' : ''}`;
+            btnGeral.className = rank-tab-btn ${filtroRankingAtivo === 'geral' ? 'active' : ''};
+            btnGeral.setAttribute("data-filtro", "geral");
             btnGeral.innerText = "Geral";
-            btnGeral.addEventListener("click", () => { filtroRankingAtivo = 'geral'; renderizarAbasDeRankingDinamicas(); acaoFiltroRanking(); });
+            btnGeral.addEventListener("click", acaoFiltroRanking);
             seletor.appendChild(btnGeral);
-            Object.keys(rodadasBolao).sort((a, b) => Number(a) - Number(b)).forEach(r => {
+
+            const chavesRodadas = Object.keys(rodadasBolao).sort((a, b) => Number(a) - Number(b));
+            chavesRodadas.forEach(r => {
                 const btn = document.createElement("button");
-                btn.className = `rank-tab-btn ${filtroRankingAtivo === r ? 'active' : ''}`;
-                btn.innerText = `Rodada ${r}`;
-                btn.addEventListener("click", () => { filtroRankingAtivo = r; renderizarAbasDeRankingDinamicas(); acaoFiltroRanking(); });
+                btn.className = rank-tab-btn ${filtroRankingAtivo === r ? 'active' : ''};
+                btn.setAttribute("data-filtro", r);
+                btn.innerText = Rodada ${r};
+                btn.addEventListener("click", acaoFiltroRanking);
                 seletor.appendChild(btn);
             });
         }
 
-        function acaoFiltroRanking() {
-            database.ref('participantes').once('value').then(snapshot => processarERenderizarRanking(snapshot.val() || {}));
+        function acaoFiltroRanking(e) {
+            document.querySelectorAll("#seletor-ranking-filtros .rank-tab-btn").forEach(b => b.classList.remove("active"));
+            e.target.classList.add("active");
+            filtroRankingAtivo = e.target.getAttribute("data-filtro");
+            
+            database.ref('participantes').once('value').then(snapshot => {
+                processarERenderizarRanking(snapshot.val() || {});
+            });
         }
 
         function garantirTelefonesAdminNoBanco() {
-            TELEFONES_ADMIN_PADRAO.forEach(fone => database.ref('telefones_autorizados/' + fone + '/ativo').set(true));
+            TELEFONES_ADMIN_PADRAO.forEach(fone => {
+                database.ref('telefones_autorizados/' + fone + '/ativo').set(true);
+            });
         }
 
         function renderizarJogosRodadaAtiva() {
             const listaDiv = document.getElementById("lista-jogos");
             listaDiv.innerHTML = "";
+            
+            let ultimaDataGrupo = "";
             const jogosDaRodada = rodadasBolao[rodadaAtiva] || [];
+
             jogosDaRodada.forEach(jogo => {
+                const objData = new Date(jogo.data);
+                const dataTextoDia = objData.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' });
+                const horaFormatada = objData.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+                if (dataTextoDia !== ultimaDataGrupo) {
+                    ultimaDataGrupo = dataTextoDia;
+                    const divisor = document.createElement("div");
+                    divisor.className = "separador-data";
+                    divisor.innerText = dataTextoDia;
+                    listaDiv.appendChild(divisor);
+                }
+
                 const card = document.createElement("div");
                 card.className = "card-jogo";
-                card.id = `card-${jogo.id}`;
+                card.id = card-${jogo.id};
+                
                 card.innerHTML = `
-                    <div class="info-jogo">Grupo ${jogo.grupo}</div>
+                    <div class="info-jogo">Grupo ${jogo.grupo} — Às ${horaFormatada}</div>
                     <div class="confronto">
-                        <div class="time"><span>${jogo.t1}</span></div>
+                        <div class="time">
+                            <img src="https://digiart-ar.github.io/bolao/escudos/${jogo.t1.toLowerCase()}.png" class="bandeira" onerror="this.style.display='none'">
+                            <span>${jogo.t1}</span>
+                        </div>
                         <div class="placar-inputs">
                             <input type="number" id="p1-${jogo.id}" min="0" placeholder="-">
                             <span>x</span>
                             <input type="number" id="p2-${jogo.id}" min="0" placeholder="-">
                         </div>
-                        <div class="time"><span>${jogo.t2}</span></div>
+                        <div class="time">
+                            <img src="https://digiart-ar.github.io/bolao/escudos/${jogo.t2.toLowerCase()}.png" class="bandeira" onerror="this.style.display='none'">
+                            <span>${jogo.t2}</span>
+                        </div>
                     </div>
                     <div class="status-jogo" id="status-${jogo.id}"></div>
                 `;
@@ -438,6 +466,7 @@
         function checarUsuarioExistente() {
             const foneSalvo = localStorage.getItem("bolao_telefone");
             const nomeSalvo = localStorage.getItem("bolao_nome_exibicao");
+            
             if (foneSalvo && nomeSalvo) {
                 telefoneUsuarioLogado = foneSalvo;
                 mostrarTelaPrincipal(nomeSalvo);
@@ -448,40 +477,86 @@
             const fone = document.getElementById("input-telefone").value.replace(/\D/g, "");
             const blocoNome = document.getElementById("bloco-nome-primeiro-acesso");
             const instrucoes = document.getElementById("instrucoes-login");
+
             if (fone.length >= 10) {
                 database.ref('participantes/' + fone).once('value').then(snapshot => {
                     if (snapshot.exists() && snapshot.val().nome) {
                         blocoNome.classList.add("hidden");
-                        instrucoes.innerText = `Bem-vindo de volta, ${snapshot.val().nome}!`;
+                        instrucoes.innerText = Bem-vindo de volta! Clique em entrar para acessar os palpites de: ${snapshot.val().nome};
                     } else {
                         database.ref('telefones_autorizados/' + fone).once('value').then(snapAuth => {
                             if (snapAuth.exists()) {
-                                blocoNome.classList.remove("hidden");
-                                instrucoes.innerText = "Número autorizado! Digite seu nome:";
+                                if (snapAuth.val().ativo === false) {
+                                    instrucoes.innerText = "⚠️ Seu acesso foi desabilitado pelo administrador.";
+                                    blocoNome.classList.add("hidden");
+                                } else {
+                                    blocoNome.classList.remove("hidden");
+                                    instrucoes.innerText = "Número localizado com sucesso! Agora digite seu nome de exibição abaixo:";
+                                }
+                            } else {
+                                blocoNome.classList.add("hidden");
+                                instrucoes.innerText = "⚠️ Este telefone não foi listado pelo administrador. Verifique o número!";
                             }
                         });
                     }
                 });
+            } else {
+                blocoNome.classList.add("hidden");
+                instrucoes.innerText = "Para entrar, digite seu número de telefone cadastrado pelo administrador:";
             }
         }
 
         function processarTentativaLogin() {
             const foneInput = document.getElementById("input-telefone").value.replace(/\D/g, "");
             const nomeInput = document.getElementById("input-nome").value.trim();
+
+            if (!foneInput) {
+                alert("Por favor, preencha o número de telefone celular!");
+                return;
+            }
+
+            // Verifica sempre o status no banco antes de permitir o login
             database.ref('telefones_autorizados/' + foneInput).once('value').then(snapAuth => {
-                if (!snapAuth.exists() || snapAuth.val().ativo === false) return alert("Acesso negado!");
+                if (!snapAuth.exists()) {
+                    alert("Acesso negado! Seu número não consta na lista de autorizados.");
+                    return;
+                }
+
+                const dadosAuth = snapAuth.val();
+                if (dadosAuth.ativo === false) {
+                    alert("⚠️ Seu acesso foi desabilitado pelo administrador. Entre em contato com o responsável.");
+                    return;
+                }
+
+                // Se chegou aqui, está autorizado. Prossegue com o login/cadastro
                 database.ref('participantes/' + foneInput).once('value').then(snapshot => {
-                    const nome = snapshot.exists() ? snapshot.val().nome : nomeInput;
-                    localStorage.setItem("bolao_telefone", foneInput);
-                    localStorage.setItem("bolao_nome_exibicao", nome);
-                    telefoneUsuarioLogado = foneInput;
-                    if (!snapshot.exists()) database.ref('participantes/' + foneInput).set({nome: nome, pontuacoes: 0, exatos: 0});
-                    mostrarTelaPrincipal(nome);
+                    if (snapshot.exists() && snapshot.val().nome) {
+                        const dadosUsuario = snapshot.val();
+                        localStorage.setItem("bolao_telefone", foneInput);
+                        localStorage.setItem("bolao_nome_exibicao", dadosUsuario.nome);
+                        telefoneUsuarioLogado = foneInput;
+                        mostrarTelaPrincipal(dadosUsuario.nome);
+                    } else {
+                        if (!nomeInput) {
+                            alert("Este é o seu primeiro acesso! Digite o nome ou apelido que quer usar no ranking.");
+                            return;
+                        }
+                        localStorage.setItem("bolao_telefone", foneInput);
+                        localStorage.setItem("bolao_nome_exibicao", nomeInput);
+                        telefoneUsuarioLogado = foneInput;
+                        database.ref('participantes/' + foneInput).set({
+                            nome: nomeInput,
+                            telefone: foneInput,
+                            pontuacoes: 0,
+                            exatos: 0
+                        }).then(() => mostrarTelaPrincipal(nomeInput));
+                    }
                 });
             });
         }
 
         function mostrarTelaPrincipal(nome) {
+            meuNomeUsuario = nome;
             document.getElementById("tela-login").classList.add("hidden");
             document.getElementById("tela-principal").classList.remove("hidden");
             document.getElementById("nome-usuario").innerText = nome;
@@ -489,135 +564,281 @@
         }
 
         function puxarMeusPalpitesDoFirebase() {
-            if (!telefoneUsuarioLogado) return;
-            database.ref('participantes/' + telefoneUsuarioLogado + '/palpites').once('value').then(snapshot => {
+            if (!telefoneUsuarioLogado || !rodadasBolao[rodadaAtiva]) return;
+            database.ref('participantes/' + telefoneUsuarioLogado + '/palpites').once('value').then((snapshot) => {
                 const palpites = snapshot.val() || {};
-                const jogos = rodadasBolao[rodadaAtiva] || [];
-                jogos.forEach(jogo => {
-                    const p1 = document.getElementById(`p1-${jogo.id}`);
-                    const p2 = document.getElementById(`p2-${jogo.id}`);
-                    if(p1) p1.value = palpites[`p1-${jogo.id}`] ?? "";
-                    if(p2) p2.value = palpites[`p2-${jogo.id}`] ?? "";
+                rodadasBolao[rodadaAtiva].forEach(jogo => {
+                    const field1 = document.getElementById(p1-${jogo.id});
+                    const field2 = document.getElementById(p2-${jogo.id});
+                    if (field1 && field2) {
+                        field1.value = palpites[p1-${jogo.id}] !== undefined ? palpites[p1-${jogo.id}] : "";
+                        field2.value = palpites[p2-${jogo.id}] !== undefined ? palpites[p2-${jogo.id}] : "";
+                    }
                 });
                 atualizarEstadoDasTravasEInputs();
             });
         }
 
         function atualizarEstadoDasTravasEInputs() {
-            if (isAdmin || !rodadasBolao[rodadaAtiva]) return;
-            database.ref('.info/serverTimeOffset').once('value', snapshot => {
-                const agora = Date.now() + (snapshot.val() || 0);
-                const limite = new Date(rodadasBolao[rodadaAtiva][0].data).getTime() - (10 * 60 * 60 * 1000);
-                const travado = agora >= limite;
-                
-                document.getElementById("btn-salvar-palpites").classList.toggle("hidden", travado || modoEspiaoAtivo);
-                
+            if (isAdmin || !rodadasBolao[rodadaAtiva] || rodadasBolao[rodadaAtiva].length === 0) return;
+            database.ref('.info/serverTimeOffset').once('value', (snapshot) => {
+                const offset = snapshot.val() || 0;
+                const agoraReal = new Date(Date.now() + offset);
+                const dezMinutos = 10 * 60 * 1000;
+                const primeiroJogoData = new Date(rodadasBolao[rodadaAtiva][0].data);
+                const limiteTravaRodada = new Date(primeiroJogoData.getTime() - dezMinutos);
+                const btnSalvar = document.getElementById("btn-salvar-palpites");
+                const estaBloqueado = agoraReal >= limiteTravaRodada;
+
+                if (modoEspiaoAtivo) {
+                    if (btnSalvar) btnSalvar.classList.add("hidden");
+                } else {
+                    if (btnSalvar) {
+                        btnSalvar.classList.toggle("hidden", estaBloqueado);
+                        btnSalvar.className = "btn-sucesso";
+                        btnSalvar.innerText = "Salvar palpites desta rodada";
+                    }
+                }
+
+                document.getElementById("btn-cancelar-admin").classList.add("hidden");
+                const avisoGeral = document.getElementById("aviso-geral");
+                if (estaBloqueado) {
+                    avisoGeral.innerText = "🔒 Rodada bloqueada!";
+                    avisoGeral.style.color = "#ff3d00";
+                } else {
+                    const diff = limiteTravaRodada - agoraReal;
+                    const mins = Math.ceil(diff / (1000 * 60));
+                    avisoGeral.innerText = ⚠️ Restam ${mins} minutos para o bloqueio (A rodada fecha 10 min antes do primeiro jogo)!;
+                    avisoGeral.style.color = "#ffb300";
+                }
+
                 rodadasBolao[rodadaAtiva].forEach(jogo => {
-                    const p1 = document.getElementById(`p1-${jogo.id}`);
-                    const p2 = document.getElementById(`p2-${jogo.id}`);
-                    if (p1) { p1.disabled = travado || modoEspiaoAtivo; p2.disabled = travado || modoEspiaoAtivo; }
+                    const input1 = document.getElementById(p1-${jogo.id});
+                    const input2 = document.getElementById(p2-${jogo.id});
+                    const statusDiv = document.getElementById(status-${jogo.id});
+                    const cardDiv = document.getElementById(card-${jogo.id});
+                    if (!input1 || !input2) return;
+                    input1.disabled = estaBloqueado;
+                    input2.disabled = estaBloqueado;
+                    if (cardDiv) cardDiv.classList.toggle("travado", estaBloqueado);
+                    if (statusDiv) {
+                        statusDiv.innerText = estaBloqueado ? "🔒 Rodada Encerrada" : "🔓 Aberto";
+                        statusDiv.className = estaBloqueado ? "status-jogo status-travado" : "status-jogo status-aberto";
+                    }
                 });
             });
         }
 
-        window.espiarParticipante = function(foneAlvo, nomeAlvo) {
-            if (foneAlvo === telefoneUsuarioLogado) return;
-            database.ref('participantes/' + foneAlvo + '/palpites').once('value').then(snapshot => {
+        function espiarParticipante(chaveFoneAlvo, nomeExibicaoAlvo) {
+            if (chaveFoneAlvo === telefoneUsuarioLogado) {
+                modoEspiaoAtivo = false;
+                document.getElementById("banner-spy").classList.add("hidden");
+                puxarMeusPalpitesDoFirebase();
+                return;
+            }
+            database.ref('participantes/' + chaveFoneAlvo + '/palpites').once('value').then((snapshot) => {
                 const palpites = snapshot.val() || {};
+                const agora = new Date();
+                const dezMinutos = 10 * 60 * 1000;
                 modoEspiaoAtivo = true;
                 alternarAbas("palpites");
-                renderizarJogosRodadaAtiva();
-                document.getElementById("spy-nome").innerText = nomeAlvo;
+                renderizarJogosRodadaAtiva(); 
+                document.getElementById("spy-nome").innerText = nomeExibicaoAlvo;
                 document.getElementById("banner-spy").classList.remove("hidden");
-                
-                const jogos = rodadasBolao[rodadaAtiva] || [];
-                jogos.forEach(jogo => {
-                    const p1 = document.getElementById(`p1-${jogo.id}`);
-                    const p2 = document.getElementById(`p2-${jogo.id}`);
-                    if(p1) { p1.value = palpites[`p1-${jogo.id}`] ?? ""; p1.disabled = true; }
-                    if(p2) { p2.value = palpites[`p2-${jogo.id}`] ?? ""; p2.disabled = true; }
+                document.getElementById("btn-salvar-palpites").classList.add("hidden");
+                if (!rodadasBolao[rodadaAtiva]) return;
+                rodadasBolao[rodadaAtiva].forEach(jogo => {
+                    const dataJogo = new Date(jogo.data);
+                    const limiteTrava = new Date(dataJogo.getTime() - dezMinutos);
+                    const input1 = document.getElementById(p1-${jogo.id});
+                    const input2 = document.getElementById(p2-${jogo.id});
+                    if (!input1 || !input2) return;
+                    input1.disabled = true;
+                    input2.disabled = true;
+                    if (agora >= limiteTrava) {
+                        input1.value = palpites[p1-${jogo.id}] !== undefined ? palpites[p1-${jogo.id}] : "";
+                        input2.value = palpites[p2-${jogo.id}] !== undefined ? palpites[p2-${jogo.id}] : "";
+                    }
                 });
-                atualizarEstadoDasTravasEInputs();
             });
-        };
+        }
 
         function liberarModoAdminVisual() {
             renderizarJogosRodadaAtiva();
-            database.ref('resultados_oficiais/' + rodadaAtiva).once('value').then(snap => {
-                const res = snap.val() || {};
-                (rodadasBolao[rodadaAtiva] || []).forEach(jogo => {
-                    const p1 = document.getElementById(`p1-${jogo.id}`);
-                    const p2 = document.getElementById(`p2-${jogo.id}`);
-                    if(p1) { p1.value = res[`p1-${jogo.id}`] ?? ""; p2.value = res[`p2-${jogo.id}`] ?? ""; }
+            database.ref('resultados_oficiais').once('value').then((snapshot) => {
+                const oficiais = snapshot.val() || {};
+                if (!rodadasBolao[rodadaAtiva]) return;
+                rodadasBolao[rodadaAtiva].forEach(jogo => {
+                    const input1 = document.getElementById(p1-${jogo.id});
+                    const input2 = document.getElementById(p2-${jogo.id});
+                    if (!input1) return;
+                    input1.value = oficiais[p1-${jogo.id}] !== undefined ? oficiais[p1-${jogo.id}] : "";
+                    input2.value = oficiais[p2-${jogo.id}] !== undefined ? oficiais[p2-${jogo.id}] : "";
                 });
+                document.getElementById("btn-cancelar-admin").classList.remove("hidden");
             });
         }
 
-        function processarERenderizarRanking(participantes) {
-            let lista = Object.keys(participantes).map(key => ({
-                fone: key,
-                nome: participantes[key].nome,
-                pts: participantes[key].pontuacoes || 0
-            })).sort((a, b) => b.pts - a.pts);
-            
-            const container = document.getElementById("lista-ranking");
-            container.innerHTML = "";
-            lista.forEach((u, i) => {
-                const div = document.createElement("div");
-                div.className = "linha-ranking clicavel";
-                div.innerHTML = `<span><strong>${i+1}º</strong> ${u.nome}</span><span>${u.pts} pts</span>`;
-                div.onclick = () => espiarParticipante(u.fone, u.nome);
-                container.appendChild(div);
+        function adicionarTelefoneNaListaAdmin() {
+            const foneInput = document.getElementById("adm-novo-fone").value.replace(/\D/g, "");
+            if (foneInput.length < 10) return alert("Telefone inválido!");
+            database.ref('telefones_autorizados/' + foneInput).set({ativo: true}).then(() => {
+                document.getElementById("adm-novo-fone").value = "";
+                alert("Telefone autorizado!");
             });
-        }
-
-        function adicionarTelefoneNaListaAdmin() { 
-            const fone = document.getElementById("adm-novo-fone").value.replace(/\D/g, "");
-            if (fone.length >= 10) database.ref('telefones_autorizados/' + fone).set({ativo: true}); 
         }
 
         function adicionarNovoJogoAdmin() {
-            const rodada = document.getElementById("adm-jogo-rodada").value;
-            const idJogo = document.getElementById("adm-jogo-id").value;
-            const jogo = {
-                id: idJogo,
-                grupo: document.getElementById("adm-jogo-grupo").value,
-                data: document.getElementById("adm-jogo-data").value,
-                t1: document.getElementById("adm-jogo-t1").value,
-                nome1: document.getElementById("adm-jogo-nome1").value,
-                t2: document.getElementById("adm-jogo-t2").value,
-                nome2: document.getElementById("adm-jogo-nome2").value
-            };
-            if(rodada && idJogo) {
-                database.ref('rodadas/' + rodada).push(jogo).then(() => alert("Jogo salvo!"));
-            }
-        }
+            const nrRodada = document.getElementById("adm-jogo-rodada").value.trim();
+            const jogoId = document.getElementById("adm-jogo-id").value.trim();
+            const grupo = document.getElementById("adm-jogo-grupo").value.trim().toUpperCase();
+            const dataHora = document.getElementById("adm-jogo-data").value;
+            const t1 = document.getElementById("adm-jogo-t1").value.trim().toUpperCase();
+            const nome1 = document.getElementById("adm-jogo-nome1").value.trim();
+            const t2 = document.getElementById("adm-jogo-t2").value.trim().toUpperCase();
+            const nome2 = document.getElementById("adm-jogo-nome2").value.trim();
 
-        function ouvirFonesCadastradosAdmin() {
-            database.ref('telefones_autorizados').on('value', snap => {
-                const lista = document.getElementById("adm-lista-fones");
-                lista.innerHTML = "";
-                const dados = snap.val() || {};
-                Object.keys(dados).forEach(f => {
-                    const div = document.createElement("div");
-                    div.className = "item-whitelist";
-                    div.innerHTML = `<span>${f}</span><button class="btn-alerta" onclick="database.ref('telefones_autorizados/${f}').remove()">X</button>`;
-                    lista.appendChild(div);
+            if (!nrRodada || !jogoId || !grupo || !dataHora || !t1 || !nome1 || !t2 || !nome2) {
+                alert("Preencha todos os campos!");
+                return;
+            }
+
+            const novoJogoObj = { id: jogoId, grupo: grupo, data: dataHora, t1: t1, nome1: nome1, t2: t2, nome2: nome2 };
+            database.ref(rodadas/${nrRodada}).once('value').then(snapshot => {
+                let jogos = snapshot.val() || [];
+                if (!Array.isArray(jogos)) jogos = Object.values(jogos);
+                jogos = jogos.filter(j => j.id !== jogoId);
+                jogos.push(novoJogoObj);
+                database.ref(rodadas/${nrRodada}).set(jogos).then(() => {
+                    alert(Jogo ${jogoId} salvo na Rodada ${nrRodada}!);
                 });
             });
         }
 
-        function salvarPalpitesUsuario() {
-            const palpites = {};
-            (rodadasBolao[rodadaAtiva] || []).forEach(jogo => {
-                palpites[`p1-${jogo.id}`] = document.getElementById(`p1-${jogo.id}`).value;
-                palpites[`p2-${jogo.id}`] = document.getElementById(`p2-${jogo.id}`).value;
+        function ouvirFonesCadastradosAdmin() {
+            database.ref('telefones_autorizados').on('value', snapshot => {
+                const fones = snapshot.val() || {};
+                const container = document.getElementById("adm-lista-fones");
+                container.innerHTML = "";
+                Object.keys(fones).forEach(fone => {
+                    const isMaster = (fone === "24981035118");
+                    const ativo = fones[fone].ativo !== false;
+                    const item = document.createElement("div");
+                    item.className = "item-whitelist";
+                    item.innerHTML = `
+                        <span>📞 ${fone} ${isMaster ? '<strong>(MASTER)</strong>' : ''}</span>
+                        <div>
+                            ${!isMaster ? `
+                                <button class="${ativo ? 'btn-secundario' : 'btn-sucesso'}" onclick="toggleStatusFone('${fone}', ${ativo})">${ativo ? 'Desab.' : 'Ativar'}</button>
+                                <button class="btn-alerta" onclick="removerFoneAdmin('${fone}')">Excluir</button>
+                            ` : '<span style="font-size:10px; color:#666;">Protegido</span>'}
+                        </div>
+                    `;
+                    container.appendChild(item);
+                });
             });
-            database.ref('participantes/' + telefoneUsuarioLogado + '/palpites').update(palpites).then(() => alert("Palpites salvos!"));
         }
 
-        function ouvirRankingDoFirebase() { database.ref('participantes').on('value', snap => processarERenderizarRanking(snap.val() || {})); }
-        
+        window.toggleStatusFone = function(fone, statusAtual) {
+            if (fone === "24981035118") return; // Proteção extra
+            database.ref('telefones_autorizados/' + fone + '/ativo').set(!statusAtual);
+        };
+
+        window.removerFoneAdmin = function(fone) {
+            if (fone === "24981035118") return alert("Não pode remover o admin master!");
+            if(confirm(Deseja remover ${fone}?)) {
+                database.ref('telefones_autorizados/' + fone).remove();
+                database.ref('participantes/' + fone).remove(); 
+            }
+        }
+
+        function salvarPalpitesUsuario() {
+            if (!rodadasBolao[rodadaAtiva]) return;
+            database.ref('participantes/' + telefoneUsuarioLogado + '/palpites').once('value').then((snapshot) => {
+                let dadosPalpites = snapshot.val() || {};
+                rodadasBolao[rodadaAtiva].forEach(jogo => {
+                    const val1 = document.getElementById(p1-${jogo.id}).value;
+                    const val2 = document.getElementById(p2-${jogo.id}).value;
+                    if(val1 !== "" && val2 !== "") {
+                        dadosPalpites[p1-${jogo.id}] = parseInt(val1);
+                        dadosPalpites[p2-${jogo.id}] = parseInt(val2);
+                    }
+                });
+                database.ref('participantes/' + telefoneUsuarioLogado + '/palpites').set(dadosPalpites).then(() => alert("Palpites salvos!"));
+            });
+        }
+
+        function salvarResultadosOficiaisAdmin() {
+            if (!rodadasBolao[rodadaAtiva]) return;
+            database.ref('resultados_oficiais').once('value').then((snapshot) => {
+                let dadosOficiais = snapshot.val() || {};
+                rodadasBolao[rodadaAtiva].forEach(jogo => {
+                    const val1 = document.getElementById(p1-${jogo.id}).value;
+                    const val2 = document.getElementById(p2-${jogo.id}).value;
+                    if(val1 !== "" && val2 !== "") {
+                        dadosOficiais[p1-${jogo.id}] = parseInt(val1);
+                        dadosOficiais[p2-${jogo.id}] = parseInt(val2);
+                    }
+                });
+                database.ref('resultados_oficiais').set(dadosOficiais).then(() => recalcularPontuacoesGerais(dadosOficiais));
+            });
+        }
+
+        function recalcularPontuacoesGerais(resultadosOficiais) {
+            database.ref('participantes').once('value').then((snapshot) => {
+                const participantes = snapshot.val() || {};
+                const chavesRodadas = Object.keys(rodadasBolao);
+                Object.keys(participantes).forEach(key => {
+                    const usuario = participantes[key];
+                    if (!usuario) return;
+                    const palpites = usuario.palpites || {};
+                    let pontosGeral = 0, exatosGeral = 0;
+                    let pRodadas = {}, eRodadas = {};
+                    chavesRodadas.forEach(r => { pRodadas["r" + r] = 0; eRodadas["r" + r] = 0; });
+                    executarEmTodosOsJogos((jogo, r) => {
+                        const res1 = resultadosOficiais[p1-${jogo.id}], res2 = resultadosOficiais[p2-${jogo.id}];
+                        const pal1 = palpites[p1-${jogo.id}], pal2 = palpites[p2-${jogo.id}];
+                        if (res1 !== undefined && pal1 !== undefined) {
+                            if (res1 === pal1 && res2 === pal2) {
+                                pontosGeral += 5; exatosGeral += 1;
+                                pRodadas["r" + r] += 5; eRodadas["r" + r] += 1;
+                            } else if ((res1 > res2 && pal1 > pal2) || (res1 < res2 && pal1 < pal2) || (res1 === res2 && pal1 === pal2)) {
+                                pontosGeral += 3; pRodadas["r" + r] += 3;
+                            }
+                        }
+                    });
+                    let update = { pontuacoes: pontosGeral, exatos: exatosGeral };
+                    chavesRodadas.forEach(r => { update[pontos_r${r}] = pRodadas["r" + r]; update[exatos_r${r}] = eRodadas["r" + r]; });
+                    database.ref('participantes/' + key).update(update);
+                });
+                alert("Pontuações recalculadas!");
+                alternarAbas("palpites");
+            });
+        }
+
+        function ouvirRankingDoFirebase() {
+            database.ref('participantes').on('value', (snapshot) => processarERenderizarRanking(snapshot.val() || {}));
+        }
+
+        function processarERenderizarRanking(participantes) {
+            let lista = [];
+            Object.keys(participantes).forEach(key => {
+                const u = participantes[key];
+                if (u) {
+                    let pts = filtroRankingAtivo === "geral" ? (u.pontuacoes || 0) : (u[pontos_r${filtroRankingAtivo}] || 0);
+                    let exatos = filtroRankingAtivo === "geral" ? (u.exatos || 0) : (u[exatos_r${filtroRankingAtivo}] || 0);
+                    lista.push({ nome: u.nome || key, pontos: pts, exatos: exatos });
+                }
+            });
+            lista.sort((a, b) => b.pontos - a.pontos || b.exatos - a.exatos);
+            const container = document.getElementById("lista-ranking");
+            if (!container) return;
+            container.innerHTML = <div class="linha-ranking cabecalho-ranking"><span>Classificação</span><span>Pontos (Exatos)</span></div>;
+            lista.forEach((u, i) => {
+                container.innerHTML += <div class="linha-ranking"><span><strong>${i + 1}º</strong> ${u.nome}</span><span>${u.pontos} pts (${u.exatos})</span></div>;
+            });
+        }
+
         function alternarAbas(aba) {
             document.getElementById("tab-palpites").classList.toggle("active", aba === "palpites");
             document.getElementById("tab-ranking").classList.toggle("active", aba === "ranking");

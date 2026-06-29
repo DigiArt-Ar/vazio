@@ -179,6 +179,7 @@
                     </div>
 
                     <button id="adm-btn-salvar-jogo" class="btn-sucesso" style="margin-top: 10px; padding: 10px;">Gravar Jogo no Banco</button>
+                    <button id="adm-btn-registrar-resultados" class="btn-alerta" style="margin-top: 10px; padding: 10px;">Registrar Resultados e Calcular</button>
                 </div>
             </div>
 
@@ -288,6 +289,9 @@
 
             document.getElementById("adm-btn-add-fone").addEventListener("click", adicionarTelefoneNaListaAdmin);
             document.getElementById("adm-btn-salvar-jogo").addEventListener("click", adicionarNovoJogoAdmin);
+            
+            // NOVO EVENTO PARA REGISTRAR RESULTADOS
+            document.getElementById("adm-btn-registrar-resultados").addEventListener("click", salvarResultadosOficiaisAdmin);
 
             document.getElementById("btn-fechar-spy").addEventListener("click", () => {
                 modoEspiaoAtivo = false;
@@ -304,11 +308,7 @@
             document.getElementById("btn-entrar").addEventListener("click", processarTentativaLogin);
 
             document.getElementById("btn-salvar-palpites").addEventListener("click", () => {
-                if (isAdmin) {
-                    salvarResultadosOficiaisAdmin();
-                } else {
-                    salvarPalpitesUsuario();
-                }
+                salvarPalpitesUsuario();
             });
             
             setInterval(atualizarEstadoDasTravasEInputs, 4000);
@@ -515,7 +515,6 @@
                 return;
             }
 
-            // Verifica sempre o status no banco antes de permitir o login
             database.ref('telefones_autorizados/' + foneInput).once('value').then(snapAuth => {
                 if (!snapAuth.exists()) {
                     alert("Acesso negado! Seu número não consta na lista de autorizados.");
@@ -528,7 +527,6 @@
                     return;
                 }
 
-                // Se chegou aqui, está autorizado. Prossegue com o login/cadastro
                 database.ref('participantes/' + foneInput).once('value').then(snapshot => {
                     if (snapshot.exists() && snapshot.val().nome) {
                         const dadosUsuario = snapshot.val();
@@ -580,7 +578,7 @@
         }
 
         function atualizarEstadoDasTravasEInputs() {
-            if (isAdmin || !rodadasBolao[rodadaAtiva] || rodadasBolao[rodadaAtiva].length === 0) return;
+            if (!rodadasBolao[rodadaAtiva] || rodadasBolao[rodadaAtiva].length === 0) return;
             database.ref('.info/serverTimeOffset').once('value', (snapshot) => {
                 const offset = snapshot.val() || 0;
                 const agoraReal = new Date(Date.now() + offset);
@@ -590,7 +588,9 @@
                 const btnSalvar = document.getElementById("btn-salvar-palpites");
                 const estaBloqueado = agoraReal >= limiteTravaRodada;
 
-                if (modoEspiaoAtivo) {
+                if (isAdmin) {
+                    if (btnSalvar) btnSalvar.classList.add("hidden");
+                } else if (modoEspiaoAtivo) {
                     if (btnSalvar) btnSalvar.classList.add("hidden");
                 } else {
                     if (btnSalvar) {
@@ -600,7 +600,7 @@
                     }
                 }
 
-                document.getElementById("btn-cancelar-admin").classList.add("hidden");
+                document.getElementById("btn-cancelar-admin").classList.toggle("hidden", !isAdmin);
                 const avisoGeral = document.getElementById("aviso-geral");
                 if (estaBloqueado) {
                     avisoGeral.innerText = "🔒 Rodada bloqueada!";
@@ -618,8 +618,14 @@
                     const statusDiv = document.getElementById(`status-${jogo.id}`);
                     const cardDiv = document.getElementById(`card-${jogo.id}`);
                     if (!input1 || !input2) return;
-                    input1.disabled = estaBloqueado;
-                    input2.disabled = estaBloqueado;
+                    
+                    if (isAdmin) {
+                        input1.disabled = false;
+                        input2.disabled = false;
+                    } else {
+                        input1.disabled = estaBloqueado;
+                        input2.disabled = estaBloqueado;
+                    }
                     if (cardDiv) cardDiv.classList.toggle("travado", estaBloqueado);
                     if (statusDiv) {
                         statusDiv.innerText = estaBloqueado ? "🔒 Rodada Encerrada" : "🔓 Aberto";
@@ -630,35 +636,36 @@
         }
 
         function espiarParticipante(chaveFoneAlvo, nomeExibicaoAlvo) {
-            if (chaveFoneAlvo === telefoneUsuarioLogado) {
-                modoEspiaoAtivo = false;
-                document.getElementById("banner-spy").classList.add("hidden");
-                puxarMeusPalpitesDoFirebase();
-                return;
-            }
             database.ref('participantes/' + chaveFoneAlvo + '/palpites').once('value').then((snapshot) => {
                 const palpites = snapshot.val() || {};
                 const agora = new Date();
                 const dezMinutos = 10 * 60 * 1000;
+                
+                // Verifica a trava real
+                if(!rodadasBolao[rodadaAtiva]) return;
+                const primeiroJogoData = new Date(rodadasBolao[rodadaAtiva][0].data);
+                const limiteTravaRodada = new Date(primeiroJogoData.getTime() - dezMinutos);
+                
+                if (agora < limiteTravaRodada) {
+                    alert("Você só pode ver os palpites após o travamento da rodada!");
+                    return;
+                }
+
                 modoEspiaoAtivo = true;
                 alternarAbas("palpites");
                 renderizarJogosRodadaAtiva(); 
                 document.getElementById("spy-nome").innerText = nomeExibicaoAlvo;
                 document.getElementById("banner-spy").classList.remove("hidden");
                 document.getElementById("btn-salvar-palpites").classList.add("hidden");
-                if (!rodadasBolao[rodadaAtiva]) return;
+                
                 rodadasBolao[rodadaAtiva].forEach(jogo => {
-                    const dataJogo = new Date(jogo.data);
-                    const limiteTrava = new Date(dataJogo.getTime() - dezMinutos);
                     const input1 = document.getElementById(`p1-${jogo.id}`);
                     const input2 = document.getElementById(`p2-${jogo.id}`);
                     if (!input1 || !input2) return;
                     input1.disabled = true;
                     input2.disabled = true;
-                    if (agora >= limiteTrava) {
-                        input1.value = palpites[`p1-${jogo.id}`] !== undefined ? palpites[`p1-${jogo.id}`] : "";
-                        input2.value = palpites[`p2-${jogo.id}`] !== undefined ? palpites[`p2-${jogo.id}`] : "";
-                    }
+                    input1.value = palpites[`p1-${jogo.id}`] !== undefined ? palpites[`p1-${jogo.id}`] : "-";
+                    input2.value = palpites[`p2-${jogo.id}`] !== undefined ? palpites[`p2-${jogo.id}`] : "-";
                 });
             });
         }
@@ -675,7 +682,6 @@
                     input1.value = oficiais[`p1-${jogo.id}`] !== undefined ? oficiais[`p1-${jogo.id}`] : "";
                     input2.value = oficiais[`p2-${jogo.id}`] !== undefined ? oficiais[`p2-${jogo.id}`] : "";
                 });
-                document.getElementById("btn-cancelar-admin").classList.remove("hidden");
             });
         }
 
@@ -740,7 +746,7 @@
         }
 
         window.toggleStatusFone = function(fone, statusAtual) {
-            if (fone === "24981035118") return; // Proteção extra
+            if (fone === "24981035118") return;
             database.ref('telefones_autorizados/' + fone + '/ativo').set(!statusAtual);
         };
 
@@ -780,7 +786,9 @@
                         dadosOficiais[`p2-${jogo.id}`] = parseInt(val2);
                     }
                 });
-                database.ref('resultados_oficiais').set(dadosOficiais).then(() => recalcularPontuacoesGerais(dadosOficiais));
+                database.ref('resultados_oficiais').set(dadosOficiais).then(() => {
+                    recalcularPontuacoesGerais(dadosOficiais);
+                });
             });
         }
 
@@ -795,10 +803,11 @@
                     let pontosGeral = 0, exatosGeral = 0;
                     let pRodadas = {}, eRodadas = {};
                     chavesRodadas.forEach(r => { pRodadas["r" + r] = 0; eRodadas["r" + r] = 0; });
+                    
                     executarEmTodosOsJogos((jogo, r) => {
                         const res1 = resultadosOficiais[`p1-${jogo.id}`], res2 = resultadosOficiais[`p2-${jogo.id}`];
                         const pal1 = palpites[`p1-${jogo.id}`], pal2 = palpites[`p2-${jogo.id}`];
-                        if (res1 !== undefined && pal1 !== undefined) {
+                        if (res1 !== undefined && res2 !== undefined && pal1 !== undefined && pal2 !== undefined) {
                             if (res1 === pal1 && res2 === pal2) {
                                 pontosGeral += 5; exatosGeral += 1;
                                 pRodadas["r" + r] += 5; eRodadas["r" + r] += 1;
@@ -807,12 +816,15 @@
                             }
                         }
                     });
+                    
                     let update = { pontuacoes: pontosGeral, exatos: exatosGeral };
-                    chavesRodadas.forEach(r => { update[`pontos_r${r}`] = pRodadas["r" + r]; update[`exatos_r${r}`] = eRodadas["r" + r]; });
+                    chavesRodadas.forEach(r => { 
+                        update[`pontos_r${r}`] = pRodadas["r" + r]; 
+                        update[`exatos_r${r}`] = eRodadas["r" + r]; 
+                    });
                     database.ref('participantes/' + key).update(update);
                 });
-                alert("Pontuações recalculadas!");
-                alternarAbas("palpites");
+                alert("Resultados registrados e pontuações recalculadas!");
             });
         }
 
@@ -827,7 +839,7 @@
                 if (u) {
                     let pts = filtroRankingAtivo === "geral" ? (u.pontuacoes || 0) : (u[`pontos_r${filtroRankingAtivo}`] || 0);
                     let exatos = filtroRankingAtivo === "geral" ? (u.exatos || 0) : (u[`exatos_r${filtroRankingAtivo}`] || 0);
-                    lista.push({ nome: u.nome || key, pontos: pts, exatos: exatos });
+                    lista.push({ key: key, nome: u.nome || key, pontos: pts, exatos: exatos });
                 }
             });
             lista.sort((a, b) => b.pontos - a.pontos || b.exatos - a.exatos);
@@ -835,7 +847,11 @@
             if (!container) return;
             container.innerHTML = `<div class="linha-ranking cabecalho-ranking"><span>Classificação</span><span>Pontos (Exatos)</span></div>`;
             lista.forEach((u, i) => {
-                container.innerHTML += `<div class="linha-ranking"><span><strong>${i + 1}º</strong> ${u.nome}</span><span>${u.pontos} pts (${u.exatos})</span></div>`;
+                const linha = document.createElement("div");
+                linha.className = "linha-ranking clicavel";
+                linha.innerHTML = `<span><strong>${i + 1}º</strong> ${u.nome}</span><span>${u.pontos} pts (${u.exatos})</span>`;
+                linha.onclick = () => espiarParticipante(u.key, u.nome);
+                container.appendChild(linha);
             });
         }
 

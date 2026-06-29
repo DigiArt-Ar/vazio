@@ -135,7 +135,6 @@
                     </button>
                 </div>
                 
-                <!-- BOTÃO DE AÇÃO PARA O ADMINISTRADOR -->
                 <button id="btn-salvar-resultados-admin" class="btn-alerta" style="margin-bottom: 20px;">
                     <i class="fas fa-save"></i> Salvar resultados oficiais (admin)
                 </button>
@@ -239,6 +238,33 @@
         let rodadaAtiva = "1"; 
         let filtroRankingAtivo = "geral";
 
+        function calcularRankingDaRodada(rodada) {
+            database.ref('resultados_oficiais/' + rodada).once('value').then(snapResultados => {
+                const resultados = snapResultados.val();
+                if (!resultados) return;
+
+                database.ref('participantes').once('value').then(snapParticipantes => {
+                    const participantes = snapParticipantes.val() || {};
+                    
+                    Object.keys(participantes).forEach(fone => {
+                        let pontosRodada = 0;
+                        const palpites = participantes[fone].palpites || {};
+
+                        Object.keys(resultados).forEach(key => {
+                            const idJogo = key.replace('p1-', '').replace('p2-', '');
+                            if (palpites[`p1-${idJogo}`] !== undefined && 
+                                palpites[`p1-${idJogo}`] == resultados[`p1-${idJogo}`] && 
+                                palpites[`p2-${idJogo}`] == resultados[`p2-${idJogo}`]) {
+                                pontosRodada += 3; 
+                            }
+                        });
+                        database.ref('participantes/' + fone + '/pontuacoes').set(pontosRodada);
+                    });
+                    alert("Resultados salvos e ranking atualizado!");
+                });
+            });
+        }
+
         function salvarResultadosOficiaisAdmin() {
             const resultados = {};
             const jogos = rodadasBolao[rodadaAtiva] || [];
@@ -253,7 +279,7 @@
             });
 
             database.ref('resultados_oficiais/' + rodadaAtiva).set(resultados).then(() => {
-                alert("Placar oficial da Rodada " + rodadaAtiva + " salvo com sucesso!");
+                calcularRankingDaRodada(rodadaAtiva);
             }).catch(e => alert("Erro ao salvar: " + e.message));
         }
 
@@ -296,7 +322,6 @@
                 }
             });
 
-            // --- VINCULANDO O NOVO BOTÃO DE SALVAR RESULTADO ---
             document.getElementById("btn-salvar-resultados-admin").addEventListener("click", salvarResultadosOficiaisAdmin);
 
             document.getElementById("adm-btn-add-fone").addEventListener("click", adicionarTelefoneNaListaAdmin);
@@ -482,7 +507,7 @@
             if (isAdmin || !rodadasBolao[rodadaAtiva]) return;
             database.ref('.info/serverTimeOffset').once('value', snapshot => {
                 const agora = Date.now() + (snapshot.val() || 0);
-                const limite = new Date(rodadasBolao[rodadaAtiva][0].data).getTime() - (10 * 60 * 1000);
+                const limite = new Date(rodadasBolao[rodadaAtiva][0].data).getTime() - (10 * 60 * 60 * 1000);
                 const travado = agora >= limite;
                 
                 document.getElementById("btn-salvar-palpites").classList.toggle("hidden", travado || modoEspiaoAtivo);

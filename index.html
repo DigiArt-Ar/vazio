@@ -355,9 +355,9 @@
 
             chavesRodadas.forEach(r => {
                 const btn = document.createElement("button");
-                btn.className = rodada-btn ${r === rodadaAtiva ? 'active' : ''};
+                btn.className = `rodada-btn ${r === rodadaAtiva ? 'active' : ''}`;
                 btn.setAttribute("data-rodada", r);
-                btn.innerText = Rodada ${r};
+                btn.innerText = `Rodada ${r}`;
                 
                 btn.addEventListener("click", (e) => {
                     document.querySelectorAll("#seletor-rodadas .rodada-btn").forEach(b => b.classList.remove("active"));
@@ -383,7 +383,7 @@
             seletor.innerHTML = "";
 
             const btnGeral = document.createElement("button");
-            btnGeral.className = rank-tab-btn ${filtroRankingAtivo === 'geral' ? 'active' : ''};
+            btnGeral.className = `rank-tab-btn ${filtroRankingAtivo === 'geral' ? 'active' : ''}`;
             btnGeral.setAttribute("data-filtro", "geral");
             btnGeral.innerText = "Geral";
             btnGeral.addEventListener("click", acaoFiltroRanking);
@@ -392,9 +392,9 @@
             const chavesRodadas = Object.keys(rodadasBolao).sort((a, b) => Number(a) - Number(b));
             chavesRodadas.forEach(r => {
                 const btn = document.createElement("button");
-                btn.className = rank-tab-btn ${filtroRankingAtivo === r ? 'active' : ''};
+                btn.className = `rank-tab-btn ${filtroRankingAtivo === r ? 'active' : ''}`;
                 btn.setAttribute("data-filtro", r);
-                btn.innerText = Rodada ${r};
+                btn.innerText = `Rodada ${r}`;
                 btn.addEventListener("click", acaoFiltroRanking);
                 seletor.appendChild(btn);
             });
@@ -438,7 +438,7 @@
 
                 const card = document.createElement("div");
                 card.className = "card-jogo";
-                card.id = card-${jogo.id};
+                card.id = `card-${jogo.id}`;
                 
                 card.innerHTML = `
                     <div class="info-jogo">Grupo ${jogo.grupo} — Às ${horaFormatada}</div>
@@ -482,7 +482,7 @@
                 database.ref('participantes/' + fone).once('value').then(snapshot => {
                     if (snapshot.exists() && snapshot.val().nome) {
                         blocoNome.classList.add("hidden");
-                        instrucoes.innerText = Bem-vindo de volta! Clique em entrar para acessar os palpites de: ${snapshot.val().nome};
+                        instrucoes.innerText = `Bem-vindo de volta! Clique em entrar para acessar os palpites de: ${snapshot.val().nome}`;
                     } else {
                         database.ref('telefones_autorizados/' + fone).once('value').then(snapAuth => {
                             if (snapAuth.exists()) {
@@ -568,11 +568,11 @@
             database.ref('participantes/' + telefoneUsuarioLogado + '/palpites').once('value').then((snapshot) => {
                 const palpites = snapshot.val() || {};
                 rodadasBolao[rodadaAtiva].forEach(jogo => {
-                    const field1 = document.getElementById(p1-${jogo.id});
-                    const field2 = document.getElementById(p2-${jogo.id});
+                    const field1 = document.getElementById(`p1-${jogo.id}`);
+                    const field2 = document.getElementById(`p2-${jogo.id}`);
                     if (field1 && field2) {
-                        field1.value = palpites[p1-${jogo.id}] !== undefined ? palpites[p1-${jogo.id}] : "";
-                        field2.value = palpites[p2-${jogo.id}] !== undefined ? palpites[p2-${jogo.id}] : "";
+                        field1.value = palpites[`p1-${jogo.id}`] !== undefined ? palpites[`p1-${jogo.id}`] : "";
+                        field2.value = palpites[`p2-${jogo.id}`] !== undefined ? palpites[`p2-${jogo.id}`] : "";
                     }
                 });
                 atualizarEstadoDasTravasEInputs();
@@ -608,15 +608,15 @@
                 } else {
                     const diff = limiteTravaRodada - agoraReal;
                     const mins = Math.ceil(diff / (1000 * 60));
-                    avisoGeral.innerText = ⚠️ Restam ${mins} minutos para o bloqueio (A rodada fecha 10 min antes do primeiro jogo)!;
+                    avisoGeral.innerText = `⚠️ Restam ${mins} minutos para o bloqueio (A rodada fecha 10 min antes do primeiro jogo)!`;
                     avisoGeral.style.color = "#ffb300";
                 }
 
                 rodadasBolao[rodadaAtiva].forEach(jogo => {
-                    const input1 = document.getElementById(p1-${jogo.id});
-                    const input2 = document.getElementById(p2-${jogo.id});
-                    const statusDiv = document.getElementById(status-${jogo.id});
-                    const cardDiv = document.getElementById(card-${jogo.id});
+                    const input1 = document.getElementById(`p1-${jogo.id}`);
+                    const input2 = document.getElementById(`p2-${jogo.id}`);
+                    const statusDiv = document.getElementById(`status-${jogo.id}`);
+                    const cardDiv = document.getElementById(`card-${jogo.id}`);
                     if (!input1 || !input2) return;
                     input1.disabled = estaBloqueado;
                     input2.disabled = estaBloqueado;
@@ -650,14 +650,14 @@
                 rodadasBolao[rodadaAtiva].forEach(jogo => {
                     const dataJogo = new Date(jogo.data);
                     const limiteTrava = new Date(dataJogo.getTime() - dezMinutos);
-                    const input1 = document.getElementById(p1-${jogo.id});
-                    const input2 = document.getElementById(p2-${jogo.id});
+                    const input1 = document.getElementById(`p1-${jogo.id}`);
+                    const input2 = document.getElementById(`p2-${jogo.id}`);
                     if (!input1 || !input2) return;
                     input1.disabled = true;
                     input2.disabled = true;
                     if (agora >= limiteTrava) {
-                        input1.value = palpites[p1-${jogo.id}] !== undefined ? palpites[p1-${jogo.id}] : "";
-                        input2.value = palpites[p2-${jogo.id}] !== undefined ? palpites[p2-${jogo.id}] : "";
+                        input1.value = palpites[`p1-${jogo.id}`] !== undefined ? palpites[`p1-${jogo.id}`] : "";
+                        input2.value = palpites[`p2-${jogo.id}`] !== undefined ? palpites[`p2-${jogo.id}`] : "";
                     }
                 });
             });
@@ -669,11 +669,11 @@
                 const oficiais = snapshot.val() || {};
                 if (!rodadasBolao[rodadaAtiva]) return;
                 rodadasBolao[rodadaAtiva].forEach(jogo => {
-                    const input1 = document.getElementById(p1-${jogo.id});
-                    const input2 = document.getElementById(p2-${jogo.id});
+                    const input1 = document.getElementById(`p1-${jogo.id}`);
+                    const input2 = document.getElementById(`p2-${jogo.id}`);
                     if (!input1) return;
-                    input1.value = oficiais[p1-${jogo.id}] !== undefined ? oficiais[p1-${jogo.id}] : "";
-                    input2.value = oficiais[p2-${jogo.id}] !== undefined ? oficiais[p2-${jogo.id}] : "";
+                    input1.value = oficiais[`p1-${jogo.id}`] !== undefined ? oficiais[`p1-${jogo.id}`] : "";
+                    input2.value = oficiais[`p2-${jogo.id}`] !== undefined ? oficiais[`p2-${jogo.id}`] : "";
                 });
                 document.getElementById("btn-cancelar-admin").classList.remove("hidden");
             });
@@ -704,13 +704,13 @@
             }
 
             const novoJogoObj = { id: jogoId, grupo: grupo, data: dataHora, t1: t1, nome1: nome1, t2: t2, nome2: nome2 };
-            database.ref(rodadas/${nrRodada}).once('value').then(snapshot => {
+            database.ref(`rodadas/${nrRodada}`).once('value').then(snapshot => {
                 let jogos = snapshot.val() || [];
                 if (!Array.isArray(jogos)) jogos = Object.values(jogos);
                 jogos = jogos.filter(j => j.id !== jogoId);
                 jogos.push(novoJogoObj);
-                database.ref(rodadas/${nrRodada}).set(jogos).then(() => {
-                    alert(Jogo ${jogoId} salvo na Rodada ${nrRodada}!);
+                database.ref(`rodadas/${nrRodada}`).set(jogos).then(() => {
+                    alert(`Jogo ${jogoId} salvo na Rodada ${nrRodada}!`);
                 });
             });
         }
@@ -746,7 +746,7 @@
 
         window.removerFoneAdmin = function(fone) {
             if (fone === "24981035118") return alert("Não pode remover o admin master!");
-            if(confirm(Deseja remover ${fone}?)) {
+            if(confirm(`Deseja remover ${fone}?`)) {
                 database.ref('telefones_autorizados/' + fone).remove();
                 database.ref('participantes/' + fone).remove(); 
             }
@@ -757,11 +757,11 @@
             database.ref('participantes/' + telefoneUsuarioLogado + '/palpites').once('value').then((snapshot) => {
                 let dadosPalpites = snapshot.val() || {};
                 rodadasBolao[rodadaAtiva].forEach(jogo => {
-                    const val1 = document.getElementById(p1-${jogo.id}).value;
-                    const val2 = document.getElementById(p2-${jogo.id}).value;
+                    const val1 = document.getElementById(`p1-${jogo.id}`).value;
+                    const val2 = document.getElementById(`p2-${jogo.id}`).value;
                     if(val1 !== "" && val2 !== "") {
-                        dadosPalpites[p1-${jogo.id}] = parseInt(val1);
-                        dadosPalpites[p2-${jogo.id}] = parseInt(val2);
+                        dadosPalpites[`p1-${jogo.id}`] = parseInt(val1);
+                        dadosPalpites[`p2-${jogo.id}`] = parseInt(val2);
                     }
                 });
                 database.ref('participantes/' + telefoneUsuarioLogado + '/palpites').set(dadosPalpites).then(() => alert("Palpites salvos!"));
@@ -773,11 +773,11 @@
             database.ref('resultados_oficiais').once('value').then((snapshot) => {
                 let dadosOficiais = snapshot.val() || {};
                 rodadasBolao[rodadaAtiva].forEach(jogo => {
-                    const val1 = document.getElementById(p1-${jogo.id}).value;
-                    const val2 = document.getElementById(p2-${jogo.id}).value;
+                    const val1 = document.getElementById(`p1-${jogo.id}`).value;
+                    const val2 = document.getElementById(`p2-${jogo.id}`).value;
                     if(val1 !== "" && val2 !== "") {
-                        dadosOficiais[p1-${jogo.id}] = parseInt(val1);
-                        dadosOficiais[p2-${jogo.id}] = parseInt(val2);
+                        dadosOficiais[`p1-${jogo.id}`] = parseInt(val1);
+                        dadosOficiais[`p2-${jogo.id}`] = parseInt(val2);
                     }
                 });
                 database.ref('resultados_oficiais').set(dadosOficiais).then(() => recalcularPontuacoesGerais(dadosOficiais));
@@ -796,8 +796,8 @@
                     let pRodadas = {}, eRodadas = {};
                     chavesRodadas.forEach(r => { pRodadas["r" + r] = 0; eRodadas["r" + r] = 0; });
                     executarEmTodosOsJogos((jogo, r) => {
-                        const res1 = resultadosOficiais[p1-${jogo.id}], res2 = resultadosOficiais[p2-${jogo.id}];
-                        const pal1 = palpites[p1-${jogo.id}], pal2 = palpites[p2-${jogo.id}];
+                        const res1 = resultadosOficiais[`p1-${jogo.id}`], res2 = resultadosOficiais[`p2-${jogo.id}`];
+                        const pal1 = palpites[`p1-${jogo.id}`], pal2 = palpites[`p2-${jogo.id}`];
                         if (res1 !== undefined && pal1 !== undefined) {
                             if (res1 === pal1 && res2 === pal2) {
                                 pontosGeral += 5; exatosGeral += 1;
@@ -808,7 +808,7 @@
                         }
                     });
                     let update = { pontuacoes: pontosGeral, exatos: exatosGeral };
-                    chavesRodadas.forEach(r => { update[pontos_r${r}] = pRodadas["r" + r]; update[exatos_r${r}] = eRodadas["r" + r]; });
+                    chavesRodadas.forEach(r => { update[`pontos_r${r}`] = pRodadas["r" + r]; update[`exatos_r${r}`] = eRodadas["r" + r]; });
                     database.ref('participantes/' + key).update(update);
                 });
                 alert("Pontuações recalculadas!");
@@ -825,17 +825,17 @@
             Object.keys(participantes).forEach(key => {
                 const u = participantes[key];
                 if (u) {
-                    let pts = filtroRankingAtivo === "geral" ? (u.pontuacoes || 0) : (u[pontos_r${filtroRankingAtivo}] || 0);
-                    let exatos = filtroRankingAtivo === "geral" ? (u.exatos || 0) : (u[exatos_r${filtroRankingAtivo}] || 0);
+                    let pts = filtroRankingAtivo === "geral" ? (u.pontuacoes || 0) : (u[`pontos_r${filtroRankingAtivo}`] || 0);
+                    let exatos = filtroRankingAtivo === "geral" ? (u.exatos || 0) : (u[`exatos_r${filtroRankingAtivo}`] || 0);
                     lista.push({ nome: u.nome || key, pontos: pts, exatos: exatos });
                 }
             });
             lista.sort((a, b) => b.pontos - a.pontos || b.exatos - a.exatos);
             const container = document.getElementById("lista-ranking");
             if (!container) return;
-            container.innerHTML = <div class="linha-ranking cabecalho-ranking"><span>Classificação</span><span>Pontos (Exatos)</span></div>;
+            container.innerHTML = `<div class="linha-ranking cabecalho-ranking"><span>Classificação</span><span>Pontos (Exatos)</span></div>`;
             lista.forEach((u, i) => {
-                container.innerHTML += <div class="linha-ranking"><span><strong>${i + 1}º</strong> ${u.nome}</span><span>${u.pontos} pts (${u.exatos})</span></div>;
+                container.innerHTML += `<div class="linha-ranking"><span><strong>${i + 1}º</strong> ${u.nome}</span><span>${u.pontos} pts (${u.exatos})</span></div>`;
             });
         }
 

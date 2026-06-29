@@ -233,12 +233,12 @@
         let rodadaAtiva = "1"; 
         let filtroRankingAtivo = "geral";
 
-        // --- NOVA FUNÇÃO PARA SALVAR RESULTADOS OFICIAIS ---
+        // --- FUNÇÃO PARA O ADMIN SALVAR RESULTADO OFICIAL ---
         function salvarResultadosOficiaisAdmin() {
             const resultados = {};
-            const jogosDaRodada = rodadasBolao[rodadaAtiva] || [];
+            const jogos = rodadasBolao[rodadaAtiva] || [];
             
-            jogosDaRodada.forEach(jogo => {
+            jogos.forEach(jogo => {
                 const p1 = document.getElementById(`p1-${jogo.id}`).value;
                 const p2 = document.getElementById(`p2-${jogo.id}`).value;
                 if (p1 !== "" && p2 !== "") {
@@ -248,18 +248,8 @@
             });
 
             database.ref('resultados_oficiais/' + rodadaAtiva).set(resultados).then(() => {
-                alert("Resultados oficiais salvos com sucesso na Rodada " + rodadaAtiva + "!");
-                recalcularPontuacoesGerais();
-            }).catch((error) => {
-                alert("Erro ao salvar resultados: " + error.message);
-            });
-        }
-
-        // --- FUNÇÃO PARA RECALCULAR PONTUAÇÕES (ESQUELETO) ---
-        function recalcularPontuacoesGerais() {
-            alert("Iniciando recalculo de pontuações de todos os participantes...");
-            // Aqui você deve colocar a lógica que compara os palpites dos usuários
-            // com os dados salvos em resultados_oficiais/
+                alert("Placar oficial da Rodada " + rodadaAtiva + " salvo com sucesso!");
+            }).catch(e => alert("Erro ao salvar: " + e.message));
         }
 
         document.addEventListener("DOMContentLoaded", () => {
@@ -304,6 +294,7 @@
             document.getElementById("adm-btn-add-fone").addEventListener("click", adicionarTelefoneNaListaAdmin);
             document.getElementById("adm-btn-salvar-jogo").addEventListener("click", adicionarNovoJogoAdmin);
 
+            // --- BOTÃO DINÂMICO ---
             document.getElementById("btn-salvar-palpites").addEventListener("click", () => {
                 if (isAdmin) {
                     salvarResultadosOficiaisAdmin();
@@ -540,7 +531,7 @@
             let lista = Object.keys(participantes).map(key => ({
                 fone: key,
                 nome: participantes[key].nome,
-                pts: filtroRankingAtivo === "geral" ? (participantes[key].pontuacoes || 0) : (participantes[key][`pontos_r${filtroRankingAtiva}`] || 0)
+                pts: participantes[key].pontuacoes || 0
             })).sort((a, b) => b.pts - a.pts);
             
             const container = document.getElementById("lista-ranking");

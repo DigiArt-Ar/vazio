@@ -229,7 +229,6 @@
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
-        const TELEFONES_ADMIN_PADRAO = ["24981035118"];
         const MASTER_NUM = "24981035118";
         let rodadasBolao = {};
         const SENHA_ADMIN_PRE_ESTABELECIDA = "1052";
@@ -254,11 +253,10 @@
             ouvirRankingDoFirebase();
             checarUsuarioExistente();
 
-            // Monitoramento de segurança em tempo real
             if (localStorage.getItem("bolao_telefone")) {
-                database.ref('telefones_autorizados/' + localStorage.getItem("bolao_telefone") + '/ativo').on('value', snap => {
-                    if (snap.exists() && snap.val() === false) {
-                        alert("Seu acesso foi desabilitado pelo administrador.");
+                database.ref('telefones_autorizados/' + localStorage.getItem("bolao_telefone")).on('value', snap => {
+                    if (snap.exists() && snap.val().ativo === false) {
+                        alert("Seu acesso foi bloqueado pelo administrador.");
                         localStorage.clear();
                         location.reload();
                     }
@@ -422,7 +420,7 @@
         }
 
         function garantirTelefonesAdminNoBanco() {
-            TELEFONES_ADMIN_PADRAO.forEach(fone => database.ref('telefones_autorizados/' + fone + '/ativo').set(true));
+            database.ref('telefones_autorizados/' + MASTER_NUM).set({ativo: true, master: true});
         }
 
         function renderizarJogosRodadaAtiva() {
@@ -470,7 +468,7 @@
                                 blocoNome.classList.remove("hidden");
                                 instrucoes.innerText = "Número autorizado! Digite seu nome:";
                             } else {
-                                instrucoes.innerText = "⚠️ Telefone não autorizado ou desabilitado.";
+                                instrucoes.innerText = "⚠️ Telefone bloqueado ou não autorizado.";
                                 blocoNome.classList.add("hidden");
                             }
                         });
@@ -486,7 +484,7 @@
             
             database.ref('telefones_autorizados/' + foneInput).once('value').then(snapAuth => {
                 if (!snapAuth.exists() || snapAuth.val().ativo === false) {
-                    return alert("Acesso negado: Este número está desabilitado ou não foi autorizado.");
+                    return alert("Acesso negado: Este número está bloqueado ou não autorizado.");
                 }
                 database.ref('participantes/' + foneInput).once('value').then(snapshot => {
                     if (snapshot.exists() && snapshot.val().nome) {
@@ -593,16 +591,18 @@
                 const fones = snap.val() || {}, cont = document.getElementById("adm-lista-fones");
                 cont.innerHTML = "";
                 Object.keys(fones).forEach(fone => {
-                    const ativo = fones[fone].ativo !== false;
+                    const dados = fones[fone];
+                    const ativo = dados.ativo !== false;
                     const isMaster = (fone === MASTER_NUM);
                     const div = document.createElement("div");
                     div.className = "item-whitelist";
                     
-                    let acoes = `<button class="${ativo ? 'btn-secundario' : 'btn-sucesso'}" onclick="toggleStatusFone('${fone}', ${ativo})">${ativo ? 'Desab.' : 'Ativar'}</button>`;
+                    let acoes = "";
                     if (!isMaster) {
-                        acoes += `<button class="btn-alerta" style="margin-left:5px" onclick="excluirTelefone('${fone}')">Excluir</button>`;
+                        acoes = `<button class="${ativo ? 'btn-secundario' : 'btn-sucesso'}" onclick="toggleStatusFone('${fone}', ${ativo})">${ativo ? 'Bloquear' : 'Ativar'}</button>
+                                 <button class="btn-alerta" style="margin-left:5px" onclick="excluirParticipante('${fone}')">Excluir</button>`;
                     } else {
-                        acoes += `<span style="font-size:10px; color:#888; margin-left:5px;">(MASTER)</span>`;
+                        acoes = `<span style="font-size:10px; color:#888;">MASTER</span>`;
                     }
                     
                     div.innerHTML = `<span>📞 ${fone}</span><div>${acoes}</div>`;
@@ -613,10 +613,12 @@
 
         window.toggleStatusFone = (fone, status) => database.ref('telefones_autorizados/' + fone + '/ativo').set(!status);
         
-        window.excluirTelefone = (fone) => {
-            if (confirm("Tem certeza que deseja EXCLUIR este participante permanentemente?")) {
-                database.ref('telefones_autorizados/' + fone).remove();
-                database.ref('participantes/' + fone).remove();
+        window.excluirParticipante = (fone) => {
+            if (confirm("⚠️ ATENÇÃO: Deseja EXCLUIR permanentemente este participante e apagar todos os dados dele?")) {
+                const updates = {};
+                updates['telefones_autorizados/' + fone] = null;
+                updates['participantes/' + fone] = null;
+                database.ref().update(updates).then(() => alert("Participante excluído!"));
             }
         };
 

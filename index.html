@@ -230,6 +230,7 @@
         const database = firebase.database();
 
         const TELEFONES_ADMIN_PADRAO = ["24981035118"];
+        const MASTER_NUM = "24981035118";
         let rodadasBolao = {};
         const SENHA_ADMIN_PRE_ESTABELECIDA = "1052";
         let isAdmin = false;
@@ -252,6 +253,17 @@
             ouvirRodadasDoFirebase(); 
             ouvirRankingDoFirebase();
             checarUsuarioExistente();
+
+            // Monitoramento de segurança em tempo real
+            if (localStorage.getItem("bolao_telefone")) {
+                database.ref('telefones_autorizados/' + localStorage.getItem("bolao_telefone") + '/ativo').on('value', snap => {
+                    if (snap.exists() && snap.val() === false) {
+                        alert("Seu acesso foi desabilitado pelo administrador.");
+                        localStorage.clear();
+                        location.reload();
+                    }
+                });
+            }
 
             document.getElementById("input-telefone").addEventListener("input", verificarStatusDoTelefoneInserido);
 
@@ -471,8 +483,11 @@
             const foneInput = document.getElementById("input-telefone").value.replace(/\D/g, "");
             const nomeInput = document.getElementById("input-nome").value.trim();
             if (!foneInput) return alert("Preencha o telefone!");
+            
             database.ref('telefones_autorizados/' + foneInput).once('value').then(snapAuth => {
-                if (!snapAuth.exists() || snapAuth.val().ativo === false) return alert("Acesso negado ou desabilitado!");
+                if (!snapAuth.exists() || snapAuth.val().ativo === false) {
+                    return alert("Acesso negado: Este número está desabilitado ou não foi autorizado.");
+                }
                 database.ref('participantes/' + foneInput).once('value').then(snapshot => {
                     if (snapshot.exists() && snapshot.val().nome) {
                         localStorage.setItem("bolao_telefone", foneInput);
@@ -579,15 +594,31 @@
                 cont.innerHTML = "";
                 Object.keys(fones).forEach(fone => {
                     const ativo = fones[fone].ativo !== false;
+                    const isMaster = (fone === MASTER_NUM);
                     const div = document.createElement("div");
                     div.className = "item-whitelist";
-                    div.innerHTML = `<span>📞 ${fone}</span><button class="${ativo ? 'btn-secundario' : 'btn-sucesso'}" onclick="toggleStatusFone('${fone}', ${ativo})">${ativo ? 'Desab.' : 'Ativar'}</button>`;
+                    
+                    let acoes = `<button class="${ativo ? 'btn-secundario' : 'btn-sucesso'}" onclick="toggleStatusFone('${fone}', ${ativo})">${ativo ? 'Desab.' : 'Ativar'}</button>`;
+                    if (!isMaster) {
+                        acoes += `<button class="btn-alerta" style="margin-left:5px" onclick="excluirTelefone('${fone}')">Excluir</button>`;
+                    } else {
+                        acoes += `<span style="font-size:10px; color:#888; margin-left:5px;">(MASTER)</span>`;
+                    }
+                    
+                    div.innerHTML = `<span>📞 ${fone}</span><div>${acoes}</div>`;
                     cont.appendChild(div);
                 });
             });
         }
 
         window.toggleStatusFone = (fone, status) => database.ref('telefones_autorizados/' + fone + '/ativo').set(!status);
+        
+        window.excluirTelefone = (fone) => {
+            if (confirm("Tem certeza que deseja EXCLUIR este participante permanentemente?")) {
+                database.ref('telefones_autorizados/' + fone).remove();
+                database.ref('participantes/' + fone).remove();
+            }
+        };
 
         function salvarPalpitesUsuario() {
             const p = {};
@@ -640,7 +671,6 @@
                 let lista = [];
                 Object.keys(part).forEach(k => {
                     const u = part[k];
-                    // Regra aplicada: Apenas usuários presentes e com status ativo (diferente de false) aparecem
                     if (u && auth[k] && auth[k].ativo !== false) {
                         lista.push({ key: k, nome: u.nome, pts: (filtroRankingAtivo === "geral" ? u.pontuacoes : u[`pontos_r${filtroRankingAtivo}`]) || 0, ext: (filtroRankingAtivo === "geral" ? u.exatos : u[`exatos_r${filtroRankingAtivo}`]) || 0, ed: u.ultima_edicao || 0 });
                     }

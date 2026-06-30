@@ -89,7 +89,7 @@
 <body>
 
     <div id="tela-login" class="container">
-        <h2>Bolão Rodadas do Brasileião</h2>
+        <h2>Bolão Oficial - Bolão Rodadas do Brasileião</h2>
         <p id="instrucoes-login">Para entrar, digite seu número de telefone cadastrado pelo administrador:</p>
         
         <input type="tel" id="input-telefone" placeholder="Telefone (DDD + Número) ex: 2499999999">
@@ -132,6 +132,9 @@
                 <div style="margin-bottom: 15px; text-align: center;">
                     <button id="adm-btn-criar-rodada" class="btn-secundario" style="background-color: #38bdf8; color: #1a1d24;">
                         ➕ Criar Nova Rodada
+                    </button>
+                    <button id="adm-btn-limpar-tudo" class="btn-alerta" onclick="limparRodadaEZeragemGeral()" style="margin-top: 10px;">
+                        🧹 Limpar Rodada e Ranking
                     </button>
                 </div>
                 <h4>➕ Criar Nova Rodada / Adicionar Jogo</h4>
@@ -243,6 +246,39 @@
                 }
             });
         }
+
+        window.limparRodadaEZeragemGeral = function() {
+            if (!confirm("⚠️ ATENÇÃO: Isso apagará TODOS os jogos da rodada ativa e ZERARÁ a pontuação de todos os participantes. Tem certeza?")) {
+                return;
+            }
+
+            const updates = {};
+            updates[`rodadas/${rodadaAtiva}`] = null;
+            
+            database.ref('participantes').once('value').then((snapshot) => {
+                const participantes = snapshot.val();
+                if (participantes) {
+                    Object.keys(participantes).forEach(key => {
+                        updates[`participantes/${key}/pontuacoes`] = 0;
+                        updates[`participantes/${key}/exatos`] = 0;
+                        updates[`participantes/${key}/palpites`] = null;
+                        updates[`participantes/${key}/ultima_edicao`] = 0;
+                        Object.keys(participantes[key]).forEach(field => {
+                            if (field.startsWith('pontos_r') || field.startsWith('exatos_r')) {
+                                updates[`participantes/${key}/${field}`] = null;
+                            }
+                        });
+                    });
+                }
+                updates['resultados_oficiais'] = null;
+                database.ref().update(updates).then(() => {
+                    alert("Rodada e Ranking zerados com sucesso!");
+                    location.reload();
+                }).catch(error => {
+                    alert("Erro ao zerar: " + error.message);
+                });
+            });
+        };
 
         document.addEventListener("DOMContentLoaded", () => {
             garantirTelefonesAdminNoBanco();

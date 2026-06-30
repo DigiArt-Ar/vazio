@@ -290,7 +290,6 @@
             document.getElementById("adm-btn-add-fone").addEventListener("click", adicionarTelefoneNaListaAdmin);
             document.getElementById("adm-btn-salvar-jogo").addEventListener("click", adicionarNovoJogoAdmin);
             
-            // NOVO EVENTO PARA REGISTRAR RESULTADOS
             document.getElementById("adm-btn-registrar-resultados").addEventListener("click", salvarResultadosOficiaisAdmin);
 
             document.getElementById("btn-fechar-spy").addEventListener("click", () => {
@@ -546,7 +545,8 @@
                             nome: nomeInput,
                             telefone: foneInput,
                             pontuacoes: 0,
-                            exatos: 0
+                            exatos: 0,
+                            ultima_edicao: 0 
                         }).then(() => mostrarTelaPrincipal(nomeInput));
                     }
                 });
@@ -641,7 +641,6 @@
                 const agora = new Date();
                 const dezMinutos = 10 * 60 * 1000;
                 
-                // Verifica a trava real
                 if(!rodadasBolao[rodadaAtiva]) return;
                 const primeiroJogoData = new Date(rodadasBolao[rodadaAtiva][0].data);
                 const limiteTravaRodada = new Date(primeiroJogoData.getTime() - dezMinutos);
@@ -770,7 +769,11 @@
                         dadosPalpites[`p2-${jogo.id}`] = parseInt(val2);
                     }
                 });
-                database.ref('participantes/' + telefoneUsuarioLogado + '/palpites').set(dadosPalpites).then(() => alert("Palpites salvos!"));
+                
+                database.ref('participantes/' + telefoneUsuarioLogado + '/palpites').set(dadosPalpites);
+                database.ref('participantes/' + telefoneUsuarioLogado + '/ultima_edicao').set(firebase.database.ServerValue.TIMESTAMP).then(() => {
+                    alert("Palpites salvos!");
+                });
             });
         }
 
@@ -839,10 +842,18 @@
                 if (u) {
                     let pts = filtroRankingAtivo === "geral" ? (u.pontuacoes || 0) : (u[`pontos_r${filtroRankingAtivo}`] || 0);
                     let exatos = filtroRankingAtivo === "geral" ? (u.exatos || 0) : (u[`exatos_r${filtroRankingAtivo}`] || 0);
-                    lista.push({ key: key, nome: u.nome || key, pontos: pts, exatos: exatos });
+                    let horaEdicao = u.ultima_edicao || 0;
+                    lista.push({ key: key, nome: u.nome || key, pontos: pts, exatos: exatos, ultima_edicao: horaEdicao });
                 }
             });
-            lista.sort((a, b) => b.pontos - a.pontos || b.exatos - a.exatos);
+            
+            lista.sort((a, b) => {
+                if (b.pontos !== a.pontos) return b.pontos - a.pontos;
+                if (b.exatos !== a.exatos) return b.exatos - a.exatos;
+                if (a.ultima_edicao !== b.ultima_edicao) return a.ultima_edicao - b.ultima_edicao;
+                return a.nome.localeCompare(b.nome);
+            });
+            
             const container = document.getElementById("lista-ranking");
             if (!container) return;
             container.innerHTML = `<div class="linha-ranking cabecalho-ranking"><span>Classificação</span><span>Pontos (Exatos)</span></div>`;

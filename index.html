@@ -218,15 +218,42 @@
         </div>
     </div>
 
-    <!-- Modal de Regras -->
-    <div id="modal-regras" class="modal">
-        <div class="modal-conteudo">
-            <h3>Regulamento do Bolão</h3>
-            <p style="text-align: left;">
-                • Acerto do placar exato: 5 pontos.<br>
-                • Acerto do vencedor/empate: 3 pontos.<br>
-                • Os palpites travam 10 minutos antes do jogo.<br>
-                • Boa sorte a todos!
+  <div id="modal-regras" class="modal">
+        <div class="modal-conteudo" style="max-height: 80vh; overflow-y: auto; text-align: left;">
+            <h3 style="color: #38bdf8; text-align: center; margin-bottom: 20px;">⚽️ Regras e Critérios do Nosso Bolão</h3>
+            
+            <p style="font-size: 14px; line-height: 1.6; color: #ccc;">
+                Para participar e entender como funciona a nossa disputa, confira as regras abaixo:
+            </p>
+
+            <h4 style="margin-top: 15px; color: #fff;">1. Prazo para Palpites</h4>
+            <p style="font-size: 14px; line-height: 1.6; color: #ccc; margin-bottom: 10px;">
+                <strong>Rodada Travada:</strong> Para garantir o equilíbrio, todos os palpites devem ser feitos até 10 minutos antes do início do primeiro jogo da rodada.<br>
+                <strong>Bloqueio:</strong> Após esse horário, o sistema bloqueia automaticamente a edição de palpites. Ninguém consegue alterar nem ver o palpite alheio até que a trava ocorra.
+            </p>
+
+            <h4 style="margin-top: 15px; color: #fff;">2. Esquema de Pontuação</h4>
+            <p style="font-size: 14px; line-height: 1.6; color: #ccc; margin-bottom: 10px;">
+                O sistema calcula sua pontuação automaticamente logo após o registro dos resultados:<br><br>
+                • <strong>Placar Exato (5 pontos):</strong> Você acerta o resultado na mosca.<br>
+                <em>Exemplo: Você palpitou 2x1 e o jogo terminou 2x1.</em><br><br>
+                • <strong>Acerto do Vencedor (3 pontos):</strong> Você acerta quem venceu o jogo ou se houve empate, mas não crava o placar.<br>
+                <em>Exemplo: Você palpitou 2x1, mas o jogo terminou 1x0 (você acertou que o primeiro time venceria).</em>
+            </p>
+
+            <h4 style="margin-top: 15px; color: #fff;">3. Critérios de Desempate</h4>
+            <p style="font-size: 14px; line-height: 1.6; color: #ccc; margin-bottom: 20px;">
+                Se dois ou mais participantes terminarem com a mesma pontuação, o sistema define a ordem no ranking seguindo estes critérios, nesta ordem:<br><br>
+                1. Maior número de pontos totais.<br>
+                2. Maior número de placares exatos (as "cravadas" de 5 pontos).<br>
+                3. Maior número de resultados (acertos de placares totais).<br>
+                4. Data e hora do envio: Quem registrou ou atualizou seu palpite mais cedo leva a vantagem.<br>
+                5. Ordem alfabética: Caso tudo esteja igual, o critério final é a ordem alfabética do nome de exibição.
+            </p>
+
+            <button class="btn-sucesso" style="width: 100%; margin-top: 10px;" onclick="document.getElementById('modal-regras').style.display='none'">Fechar</button>
+        </div>
+    </div>
             </p>
             <button class="btn-sucesso" onclick="document.getElementById('modal-regras').style.display='none'">Entendido</button>
         </div>

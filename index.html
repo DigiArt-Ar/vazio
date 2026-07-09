@@ -114,6 +114,7 @@
             <span id="boas-vindas">Olá, <strong id="nome-usuario"></strong></span>
             <div>
                 <button id="btn-regras" onclick="abrirRegras()">Regras</button>
+                <button id="btn-sair" onclick="fazerLogoff()" style="background: none; border: none; color: #ff3d00; font-size: 14px; cursor: pointer; font-weight: bold; margin-left: 10px;">Sair</button>
                 <button id="btn-admin" class="hidden" title="Área do Administrador"><i class="fas fa-cog"></i></button>
             </div>
         </header>
@@ -249,6 +250,18 @@
     <script>
         function abrirRegras() { document.getElementById("modal-regras").classList.remove("hidden"); }
         function fecharRegras() { document.getElementById("modal-regras").classList.add("hidden"); }
+
+        /**
+         * Função para desconectar o usuário do dispositivo atual
+         * Limpa os dados persistentes e recarrega a página
+         */
+        window.fazerLogoff = function() {
+            if (confirm("Deseja realmente sair deste bolão neste dispositivo?")) {
+                localStorage.removeItem("bolao_telefone");
+                localStorage.removeItem("bolao_nome_exibicao");
+                location.reload();
+            }
+        };
 
         const firebaseConfig = {
             apiKey: "AIzaSyA2AOf9zLnPhiIwARN6nm0UPvt4uvBMw6s",
@@ -544,7 +557,6 @@
             document.getElementById("tela-principal").classList.remove("hidden");
             document.getElementById("nome-usuario").innerText = nome;
             
-            // Lógica de exibição do botão Admin baseada no número master
             if (telefoneUsuarioLogado === MASTER_NUM) {
                 document.getElementById("btn-admin").classList.remove("hidden");
             }

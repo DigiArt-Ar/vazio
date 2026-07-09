@@ -19,6 +19,7 @@
         header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2a2f3a; padding-bottom: 15px; margin-bottom: 15px; }
         #btn-admin { background: none; border: none; color: #888; font-size: 20px; cursor: pointer; transition: color 0.2s; }
         #btn-admin:hover { color: #fff; }
+        #btn-regras { background: none; border: none; color: #38bdf8; font-size: 14px; cursor: pointer; font-weight: bold; margin-left: 10px; }
 
         input[type="text"], input[type="number"], input[type="tel"], input[type="datetime-local"], select { background-color: #252a34; border: 1px solid #3a4252; color: #fff; padding: 12px; border-radius: 6px; text-align: center; outline: none; width: 100%; margin-bottom: 15px; font-size: 16px; }
         select { text-align-last: center; -webkit-appearance: none; -moz-appearance: none; appearance: none; }
@@ -84,6 +85,11 @@
         .form-admin-jogos input, .form-admin-jogos select { margin-bottom: 4px; padding: 8px; font-size: 14px; text-align: left; }
         .form-admin-jogos .row-dupla { display: flex; gap: 8px; }
         .form-admin-jogos .row-dupla div { flex: 1; display: flex; flex-direction: column; }
+
+        .modal-regras { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
+        .modal-conteudo { background: #1a1d24; padding: 20px; border-radius: 12px; max-width: 450px; width: 100%; max-height: 80vh; overflow-y: auto; text-align: left; border: 1px solid #38bdf8; }
+        .modal-conteudo h3 { color: #38bdf8; }
+        .modal-conteudo p { text-align: left; font-size: 14px; margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -106,7 +112,10 @@
     <div id="tela-principal" class="container hidden">
         <header>
             <span id="boas-vindas">Olá, <strong id="nome-usuario"></strong></span>
-            <button id="btn-admin" title="Área do Administrador"><i class="fas fa-cog"></i></button>
+            <div>
+                <button id="btn-regras" onclick="abrirRegras()">Regras</button>
+                <button id="btn-admin" title="Área do Administrador"><i class="fas fa-cog"></i></button>
+            </div>
         </header>
 
         <div class="tabs">
@@ -211,10 +220,36 @@
         </div>
     </div>
 
+    <!-- Modal de Regras -->
+    <div id="modal-regras" class="modal-regras hidden">
+        <div class="modal-conteudo">
+            <h3>⚽️ Regras e Critérios do Nosso Bolão</h3>
+            <p>Para participar e entender como funciona a nossa disputa, confira as regras abaixo:</p>
+            <p><strong>1. Prazo para Palpites.</strong><br>
+            Rodada Travada: Para garantir o equilíbrio, todos os palpites devem ser feitos até 10 minutos antes do início do primeiro jogo da rodada.<br>
+            Bloqueio: Após esse horário, o sistema bloqueia automaticamente a edição de palpites. Ninguém consegue alterar nem ver o palpite alheio até que a trava ocorra.</p>
+            <p><strong>2. Esquema de Pontuação.</strong><br>
+            O sistema calcula sua pontuação automaticamente logo após o registro dos resultados:<br>
+            - Placar Exato (5 pontos): Você acerta o resultado na mosca.<br>
+            - Acerto do Vencedor (3 pontos): Você acerta quem venceu o jogo ou se houve empate, mas não crava o placar.</p>
+            <p><strong>3. Critérios de Desempate.</strong><br>
+            Se dois ou mais participantes terminarem com a mesma pontuação, o sistema define a ordem no ranking seguindo estes critérios:<br>
+            1. Maior número de pontos totais.<br>
+            2. Maior número de placares exatos (as "cravadas" de 5 pontos).<br>
+            3. Maior número de resultados (acertos de placares totais).<br>
+            4. Data e hora do envio: Quem registrou ou atualizou seu palpite mais cedo leva a vantagem.<br>
+            5. Ordem alfabética: Caso tudo esteja igual, o critério final é a ordem alfabética do nome de exibição.</p>
+            <button class="btn-sucesso" onclick="fecharRegras()">Entendido</button>
+        </div>
+    </div>
+
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
     <script>
+        function abrirRegras() { document.getElementById("modal-regras").classList.remove("hidden"); }
+        function fecharRegras() { document.getElementById("modal-regras").classList.add("hidden"); }
+
         const firebaseConfig = {
             apiKey: "AIzaSyA2AOf9zLnPhiIwARN6nm0UPvt4uvBMw6s",
             authDomain: "bolao-de-rodadas.firebaseapp.com",
@@ -698,4 +733,4 @@
         }
     </script>
 </body>
-        </html>
+</html>

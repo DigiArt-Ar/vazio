@@ -114,7 +114,7 @@
             <span id="boas-vindas">Olá, <strong id="nome-usuario"></strong></span>
             <div>
                 <button id="btn-regras" onclick="abrirRegras()">Regras</button>
-                <button id="btn-admin" title="Área do Administrador"><i class="fas fa-cog"></i></button>
+                <button id="btn-admin" class="hidden" title="Área do Administrador"><i class="fas fa-cog"></i></button>
             </div>
         </header>
 
@@ -543,6 +543,12 @@
             document.getElementById("tela-login").classList.add("hidden");
             document.getElementById("tela-principal").classList.remove("hidden");
             document.getElementById("nome-usuario").innerText = nome;
+            
+            // Lógica de exibição do botão Admin baseada no número master
+            if (telefoneUsuarioLogado === MASTER_NUM) {
+                document.getElementById("btn-admin").classList.remove("hidden");
+            }
+            
             puxarMeusPalpitesDoFirebase();
         }
 

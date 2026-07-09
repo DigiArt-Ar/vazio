@@ -21,7 +21,7 @@
         #btn-admin:hover { color: #fff; }
         #btn-regras { background: none; border: none; color: #38bdf8; font-size: 14px; cursor: pointer; font-weight: bold; margin-left: 10px; }
 
-        input[type="text"], input[type="number"], input[type="tel"], input[type="datetime-local"], select { background-color: #252a34; border: 1px solid #3a4252; color: #fff; padding: 12px; border-radius: 6px; text-align: center; outline: none; width: 100%; margin-bottom: 15px; font-size: 16px; }
+        input[type="text"], input[type="number"], input[type="tel"], input[type="password"], input[type="datetime-local"], select { background-color: #252a34; border: 1px solid #3a4252; color: #fff; padding: 12px; border-radius: 6px; text-align: center; outline: none; width: 100%; margin-bottom: 15px; font-size: 16px; }
         select { text-align-last: center; -webkit-appearance: none; -moz-appearance: none; appearance: none; }
 
         button { color: white; border: none; padding: 14px; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer; width: 100%; transition: background 0.2s; margin-bottom: 10px; }
@@ -104,6 +104,13 @@
             <p style="color: #38bdf8; font-weight: bold; margin-top: 10px;">Identificamos que este é o seu primeiro acesso!</p>
             <p>Escolha o nome ou apelido que aparecerá na classificação geral:</p>
             <input type="text" id="input-nome" placeholder="Seu nome completo ou apelido">
+            <p>Crie uma senha de acesso:</p>
+            <input type="password" id="input-senha" placeholder="Senha (apenas números)">
+        </div>
+
+        <div id="bloco-login-senha" class="hidden">
+            <p id="label-login-senha" style="color: #00c853; font-weight: bold;">Digite sua senha:</p>
+            <input type="password" id="input-senha-login" placeholder="Sua senha">
         </div>
         
         <button id="btn-entrar" class="btn-sucesso">Confirmar e entrar</button>
@@ -221,7 +228,6 @@
         </div>
     </div>
 
-    <!-- Modal de Regras -->
     <div id="modal-regras" class="modal-regras hidden">
         <div class="modal-conteudo">
             <h3>⚽️ Regras e Critérios do Nosso Bolão</h3>
@@ -251,10 +257,6 @@
         function abrirRegras() { document.getElementById("modal-regras").classList.remove("hidden"); }
         function fecharRegras() { document.getElementById("modal-regras").classList.add("hidden"); }
 
-        /**
-         * Função para desconectar o usuário do dispositivo atual
-         * Limpa os dados persistentes e recarrega a página
-         */
         window.fazerLogoff = function() {
             if (confirm("Deseja realmente sair deste bolão neste dispositivo?")) {
                 localStorage.removeItem("bolao_telefone");
@@ -498,26 +500,34 @@
         function checarUsuarioExistente() {
             const foneSalvo = localStorage.getItem("bolao_telefone");
             const nomeSalvo = localStorage.getItem("bolao_nome_exibicao");
-            if (foneSalvo && nomeSalvo) { telefoneUsuarioLogado = foneSalvo; mostrarTelaPrincipal(nomeSalvo); }
+            if (foneSalvo && nomeSalvo) { 
+                telefoneUsuarioLogado = foneSalvo; 
+                mostrarTelaPrincipal(nomeSalvo); 
+            }
         }
 
         function verificarStatusDoTelefoneInserido() {
             const fone = document.getElementById("input-telefone").value.replace(/\D/g, "");
             const blocoNome = document.getElementById("bloco-nome-primeiro-acesso");
+            const blocoLoginSenha = document.getElementById("bloco-login-senha");
             const instrucoes = document.getElementById("instrucoes-login");
+            
             if (fone.length >= 10) {
                 database.ref('participantes/' + fone).once('value').then(snapshot => {
-                    if (snapshot.exists() && snapshot.val().nome) {
+                    if (snapshot.exists() && snapshot.val().senha) {
                         blocoNome.classList.add("hidden");
-                        instrucoes.innerText = `Bem-vindo de volta, ${snapshot.val().nome}!`;
+                        blocoLoginSenha.classList.remove("hidden");
+                        instrucoes.innerText = `Olá, ${snapshot.val().nome}!`;
                     } else {
                         database.ref('telefones_autorizados/' + fone).once('value').then(snapAuth => {
                             if (snapAuth.exists() && snapAuth.val().ativo !== false) {
                                 blocoNome.classList.remove("hidden");
-                                instrucoes.innerText = "Número autorizado! Digite seu nome:";
+                                blocoLoginSenha.classList.add("hidden");
+                                instrucoes.innerText = "Número autorizado! Complete seu cadastro:";
                             } else {
                                 instrucoes.innerText = "⚠️ Telefone bloqueado ou não autorizado.";
                                 blocoNome.classList.add("hidden");
+                                blocoLoginSenha.classList.add("hidden");
                             }
                         });
                     }
@@ -528,26 +538,37 @@
         function processarTentativaLogin() {
             const foneInput = document.getElementById("input-telefone").value.replace(/\D/g, "");
             const nomeInput = document.getElementById("input-nome").value.trim();
+            const senhaInput = document.getElementById("input-senha").value.trim();
+            const senhaLoginInput = document.getElementById("input-senha-login").value.trim();
+            
             if (!foneInput) return alert("Preencha o telefone!");
             
-            database.ref('telefones_autorizados/' + foneInput).once('value').then(snapAuth => {
-                if (!snapAuth.exists() || snapAuth.val().ativo === false) {
-                    return alert("Acesso negado: Este número está bloqueado ou não autorizado.");
-                }
-                database.ref('participantes/' + foneInput).once('value').then(snapshot => {
-                    if (snapshot.exists() && snapshot.val().nome) {
+            database.ref('participantes/' + foneInput).once('value').then(snapshot => {
+                if (snapshot.exists() && snapshot.val().senha) {
+                    // Login com senha
+                    if (snapshot.val().senha === senhaLoginInput) {
                         localStorage.setItem("bolao_telefone", foneInput);
                         localStorage.setItem("bolao_nome_exibicao", snapshot.val().nome);
                         telefoneUsuarioLogado = foneInput;
                         mostrarTelaPrincipal(snapshot.val().nome);
                     } else {
-                        if (!nomeInput) return alert("Digite um nome!");
-                        localStorage.setItem("bolao_telefone", foneInput);
-                        localStorage.setItem("bolao_nome_exibicao", nomeInput);
-                        telefoneUsuarioLogado = foneInput;
-                        database.ref('participantes/' + foneInput).set({ nome: nomeInput, telefone: foneInput, pontuacoes: 0, exatos: 0, ultima_edicao: 0 }).then(() => mostrarTelaPrincipal(nomeInput));
+                        alert("Senha incorreta!");
                     }
-                });
+                } else {
+                    // Novo cadastro
+                    if (!nomeInput || !senhaInput) return alert("Preencha nome e senha!");
+                    localStorage.setItem("bolao_telefone", foneInput);
+                    localStorage.setItem("bolao_nome_exibicao", nomeInput);
+                    telefoneUsuarioLogado = foneInput;
+                    database.ref('participantes/' + foneInput).set({ 
+                        nome: nomeInput, 
+                        telefone: foneInput, 
+                        senha: senhaInput, 
+                        pontuacoes: 0, 
+                        exatos: 0, 
+                        ultima_edicao: 0 
+                    }).then(() => mostrarTelaPrincipal(nomeInput));
+                }
             });
         }
 

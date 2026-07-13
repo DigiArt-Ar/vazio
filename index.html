@@ -306,7 +306,6 @@
             ouvirRodadasDoFirebase(); 
             ouvirRankingDoFirebase();
             
-            // CORREÇÃO: Verificação de bloqueio em tempo real no carregamento
             const foneSalvo = localStorage.getItem("bolao_telefone");
             if (foneSalvo) {
                 database.ref('telefones_autorizados/' + foneSalvo).once('value').then(snap => {
@@ -326,7 +325,6 @@
                 filtrarListaFones(e.target.value);
             });
 
-            // Listener de bloqueio dinâmico caso ocorra enquanto o usuário está logado
             if (foneSalvo) {
                 database.ref('telefones_autorizados/' + foneSalvo + '/ativo').on('value', snap => {
                     if (snap.exists() && snap.val() === false) {
@@ -567,30 +565,37 @@
             
             if (!foneInput) return alert("Preencha o telefone!");
             
-            database.ref('participantes/' + foneInput).once('value').then(snapshot => {
-                if (snapshot.exists() && snapshot.val().senha) {
-                    if (snapshot.val().senha === senhaLoginInput) {
-                        localStorage.setItem("bolao_telefone", foneInput);
-                        localStorage.setItem("bolao_nome_exibicao", snapshot.val().nome);
-                        telefoneUsuarioLogado = foneInput;
-                        mostrarTelaPrincipal(snapshot.val().nome);
-                    } else {
-                        alert("Senha incorreta!");
-                    }
-                } else {
-                    if (!nomeInput || !senhaInput) return alert("Preencha nome e senha!");
-                    localStorage.setItem("bolao_telefone", foneInput);
-                    localStorage.setItem("bolao_nome_exibicao", nomeInput);
-                    telefoneUsuarioLogado = foneInput;
-                    database.ref('participantes/' + foneInput).set({ 
-                        nome: nomeInput, 
-                        telefone: foneInput, 
-                        senha: senhaInput, 
-                        pontuacoes: 0, 
-                        exatos: 0, 
-                        ultima_edicao: 0 
-                    }).then(() => mostrarTelaPrincipal(nomeInput));
+            // CORREÇÃO: Verificação de bloqueio no momento do login
+            database.ref('telefones_autorizados/' + foneInput).once('value').then(snapAuth => {
+                if (snapAuth.exists() && snapAuth.val().ativo === false) {
+                    return alert("Acesso bloqueado pelo administrador.");
                 }
+                
+                database.ref('participantes/' + foneInput).once('value').then(snapshot => {
+                    if (snapshot.exists() && snapshot.val().senha) {
+                        if (snapshot.val().senha === senhaLoginInput) {
+                            localStorage.setItem("bolao_telefone", foneInput);
+                            localStorage.setItem("bolao_nome_exibicao", snapshot.val().nome);
+                            telefoneUsuarioLogado = foneInput;
+                            mostrarTelaPrincipal(snapshot.val().nome);
+                        } else {
+                            alert("Senha incorreta!");
+                        }
+                    } else {
+                        if (!nomeInput || !senhaInput) return alert("Preencha nome e senha!");
+                        localStorage.setItem("bolao_telefone", foneInput);
+                        localStorage.setItem("bolao_nome_exibicao", nomeInput);
+                        telefoneUsuarioLogado = foneInput;
+                        database.ref('participantes/' + foneInput).set({ 
+                            nome: nomeInput, 
+                            telefone: foneInput, 
+                            senha: senhaInput, 
+                            pontuacoes: 0, 
+                            exatos: 0, 
+                            ultima_edicao: 0 
+                        }).then(() => mostrarTelaPrincipal(nomeInput));
+                    }
+                });
             });
         }
 

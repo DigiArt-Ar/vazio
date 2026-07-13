@@ -76,9 +76,9 @@
         .visualizando-banner button { width: auto; margin: 0; padding: 5px 10px; background-color: rgba(255,255,255,0.2); font-size: 12px; }
 
         .box-whitelist { background-color: #252a34; padding: 15px; border-radius: 8px; margin-top: 15px; border: 1px dashed #3a4252; }
-        .lista-whitelist { max-height: 150px; overflow-y: auto; margin-top: 10px; background: #151921; padding: 10px; border-radius: 6px; text-align: left; font-size: 13px; }
-        .item-whitelist { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #252a34; align-items: center; }
-        .item-whitelist button { width: auto; padding: 2px 6px; font-size: 11px; margin-bottom: 0; }
+        .lista-whitelist { max-height: 200px; overflow-y: auto; margin-top: 10px; background: #151921; padding: 10px; border-radius: 6px; text-align: left; font-size: 13px; }
+        .item-whitelist { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #252a34; align-items: center; }
+        .item-whitelist button { width: auto; padding: 4px 8px; font-size: 11px; margin-bottom: 0; }
 
         .form-admin-jogos { display: flex; flex-direction: column; gap: 2px; text-align: left; margin-top: 10px; }
         .form-admin-jogos label { font-size: 12px; font-weight: bold; color: #38bdf8; margin-top: 6px; }
@@ -291,7 +291,7 @@
         let telefoneUsuarioLogado = ""; 
         let rodadaAtiva = "1"; 
         let filtroRankingAtivo = "geral";
-        let cacheFones = {}; // Cache para a lista de telefones
+        let cacheFones = {}; 
 
         function executarEmTodosOsJogos(callback) {
             Object.keys(rodadasBolao).forEach(r => {
@@ -307,10 +307,8 @@
             ouvirRankingDoFirebase();
             checarUsuarioExistente();
 
-            // Lógica de pesquisa adicionada aqui
             document.getElementById("adm-busca-fone").addEventListener("input", (e) => {
-                const termo = e.target.value.toLowerCase();
-                filtrarListaFones(termo);
+                filtrarListaFones(e.target.value);
             });
 
             if (localStorage.getItem("bolao_telefone")) {
@@ -659,15 +657,13 @@
         function ouvirFonesCadastradosAdmin() {
             database.ref('telefones_autorizados').on('value', snap => {
                 cacheFones = snap.val() || {};
-                renderizarListaFones(cacheFones);
-            });
-            // Busca também nomes dos participantes para pesquisa ficar completa
-            database.ref('participantes').once('value', snap => {
-                const parts = snap.val() || {};
-                Object.keys(parts).forEach(k => {
-                    if (cacheFones[k]) cacheFones[k].nome = parts[k].nome;
+                database.ref('participantes').once('value', snapParts => {
+                    const parts = snapParts.val() || {};
+                    Object.keys(cacheFones).forEach(k => {
+                        if (parts[k]) cacheFones[k].nome = parts[k].nome;
+                    });
+                    renderizarListaFones(cacheFones);
                 });
-                renderizarListaFones(cacheFones);
             });
         }
 
@@ -678,12 +674,13 @@
                 const dados = fones[fone];
                 const ativo = dados.ativo !== false;
                 const isMaster = (fone === MASTER_NUM);
-                const nomeDisplay = dados.nome ? `(${dados.nome})` : "";
+                const nome = dados.nome || "";
                 
                 const div = document.createElement("div");
                 div.className = "item-whitelist";
+                // Guardamos as informações no dataset para a busca encontrar fácil
                 div.dataset.fone = fone;
-                div.dataset.nome = dados.nome || "";
+                div.dataset.nome = nome.toLowerCase();
                 
                 let acoes = "";
                 if (!isMaster) {
@@ -693,20 +690,21 @@
                     acoes = `<span style="font-size:10px; color:#888;">MASTER</span>`;
                 }
                 
-                div.innerHTML = `<span>📞 ${fone} <small>${nomeDisplay}</small></span><div>${acoes}</div>`;
+                div.innerHTML = `<span>📞 ${fone} <small>(${nome})</small></span><div>${acoes}</div>`;
                 cont.appendChild(div);
             });
         }
 
         function filtrarListaFones(termo) {
+            const termoBusca = termo.toLowerCase();
             const itens = document.querySelectorAll(".item-whitelist");
             itens.forEach(item => {
                 const fone = item.dataset.fone;
-                const nome = item.dataset.nome.toLowerCase();
-                if (fone.includes(termo) || nome.includes(termo)) {
-                    item.classList.remove("hidden");
+                const nome = item.dataset.nome;
+                if (fone.includes(termoBusca) || nome.includes(termoBusca)) {
+                    item.style.display = "flex";
                 } else {
-                    item.classList.add("hidden");
+                    item.style.display = "none";
                 }
             });
         }
@@ -786,7 +784,7 @@
                 Object.keys(part).forEach(k => {
                     const u = part[k];
                     if (u && auth[k] && auth[k].ativo !== false) {
-                        lista.push({ key: k, nome: u.nome, pts: (filtroRankingAtivo === "geral" ? u.pontuacoes : u[`pontos_r${filtroRankingAtiva}`]) || 0, ext: (filtroRankingAtivo === "geral" ? u.exatos : u[`exatos_r${filtroRankingAtivo}`]) || 0, ed: u.ultima_edicao || 0 });
+                        lista.push({ key: k, nome: u.nome, pts: (filtroRankingAtivo === "geral" ? u.pontuacoes : u[`pontos_r${filtroRankingAtivo}`]) || 0, ext: (filtroRankingAtivo === "geral" ? u.exatos : u[`exatos_r${filtroRankingAtivo}`]) || 0, ed: u.ultima_edicao || 0 });
                     }
                 });
                 lista.sort((a,b) => b.pts - a.pts || b.ext - a.ext || a.ed - b.ed);

@@ -208,6 +208,9 @@
             <div id="painel-admin-whitelist" class="box-whitelist hidden">
                 <h4>🔑 Registro de telefones autorizados</h4>
                 <p style="text-align: left; font-size: 11px; margin-top: 5px;">Gerencie o acesso dos participantes:</p>
+                
+                <input type="text" id="adm-busca-fone" placeholder="🔍 Pesquisar por nome ou telefone..." style="margin-top: 10px; margin-bottom: 5px; font-size: 13px;">
+                
                 <div style="display: flex; gap: 5px; margin-top: 10px;">
                     <input type="tel" id="adm-novo-fone" placeholder="Ex: 24993148000" style="margin-bottom: 0; padding: 8px; text-align: left;">
                     <button id="adm-btn-add-fone" class="btn-sucesso" style="width: auto; margin-bottom:0; padding: 8px 15px;">+ Add</button>
@@ -288,6 +291,7 @@
         let telefoneUsuarioLogado = ""; 
         let rodadaAtiva = "1"; 
         let filtroRankingAtivo = "geral";
+        let cacheFones = {}; // Cache para a lista de telefones
 
         function executarEmTodosOsJogos(callback) {
             Object.keys(rodadasBolao).forEach(r => {
@@ -302,6 +306,12 @@
             ouvirRodadasDoFirebase(); 
             ouvirRankingDoFirebase();
             checarUsuarioExistente();
+
+            // Lógica de pesquisa adicionada aqui
+            document.getElementById("adm-busca-fone").addEventListener("input", (e) => {
+                const termo = e.target.value.toLowerCase();
+                filtrarListaFones(termo);
+            });
 
             if (localStorage.getItem("bolao_telefone")) {
                 database.ref('telefones_autorizados/' + localStorage.getItem("bolao_telefone")).on('value', snap => {
@@ -545,7 +555,6 @@
             
             database.ref('participantes/' + foneInput).once('value').then(snapshot => {
                 if (snapshot.exists() && snapshot.val().senha) {
-                    // Login com senha
                     if (snapshot.val().senha === senhaLoginInput) {
                         localStorage.setItem("bolao_telefone", foneInput);
                         localStorage.setItem("bolao_nome_exibicao", snapshot.val().nome);
@@ -555,7 +564,6 @@
                         alert("Senha incorreta!");
                     }
                 } else {
-                    // Novo cadastro
                     if (!nomeInput || !senhaInput) return alert("Preencha nome e senha!");
                     localStorage.setItem("bolao_telefone", foneInput);
                     localStorage.setItem("bolao_nome_exibicao", nomeInput);
@@ -648,40 +656,58 @@
             database.ref('telefones_autorizados/' + f).set({ativo: true}).then(() => alert("Autorizado!"));
         }
 
-        function adicionarNovoJogoAdmin() {
-            const r = document.getElementById("adm-jogo-rodada").value, id = document.getElementById("adm-jogo-id").value;
-            const obj = { id: id, grupo: document.getElementById("adm-jogo-grupo").value.toUpperCase(), data: document.getElementById("adm-jogo-data").value, t1: document.getElementById("adm-jogo-t1").value.toUpperCase(), nome1: document.getElementById("adm-jogo-nome1").value, t2: document.getElementById("adm-jogo-t2").value.toUpperCase(), nome2: document.getElementById("adm-jogo-nome2").value };
-            database.ref(`rodadas/${r}`).once('value').then(snap => {
-                let j = snap.val() || [];
-                if (!Array.isArray(j)) j = Object.values(j);
-                j = j.filter(x => x.id !== id);
-                j.push(obj);
-                database.ref(`rodadas/${r}`).set(j).then(() => alert("Jogo salvo!"));
+        function ouvirFonesCadastradosAdmin() {
+            database.ref('telefones_autorizados').on('value', snap => {
+                cacheFones = snap.val() || {};
+                renderizarListaFones(cacheFones);
+            });
+            // Busca também nomes dos participantes para pesquisa ficar completa
+            database.ref('participantes').once('value', snap => {
+                const parts = snap.val() || {};
+                Object.keys(parts).forEach(k => {
+                    if (cacheFones[k]) cacheFones[k].nome = parts[k].nome;
+                });
+                renderizarListaFones(cacheFones);
             });
         }
 
-        function ouvirFonesCadastradosAdmin() {
-            database.ref('telefones_autorizados').on('value', snap => {
-                const fones = snap.val() || {}, cont = document.getElementById("adm-lista-fones");
-                cont.innerHTML = "";
-                Object.keys(fones).forEach(fone => {
-                    const dados = fones[fone];
-                    const ativo = dados.ativo !== false;
-                    const isMaster = (fone === MASTER_NUM);
-                    const div = document.createElement("div");
-                    div.className = "item-whitelist";
-                    
-                    let acoes = "";
-                    if (!isMaster) {
-                        acoes = `<button class="${ativo ? 'btn-secundario' : 'btn-sucesso'}" onclick="toggleStatusFone('${fone}', ${ativo})">${ativo ? 'Bloquear' : 'Ativar'}</button>
-                                 <button class="btn-alerta" style="margin-left:5px" onclick="excluirParticipante('${fone}')">Excluir</button>`;
-                    } else {
-                        acoes = `<span style="font-size:10px; color:#888;">MASTER</span>`;
-                    }
-                    
-                    div.innerHTML = `<span>📞 ${fone}</span><div>${acoes}</div>`;
-                    cont.appendChild(div);
-                });
+        function renderizarListaFones(fones) {
+            const cont = document.getElementById("adm-lista-fones");
+            cont.innerHTML = "";
+            Object.keys(fones).forEach(fone => {
+                const dados = fones[fone];
+                const ativo = dados.ativo !== false;
+                const isMaster = (fone === MASTER_NUM);
+                const nomeDisplay = dados.nome ? `(${dados.nome})` : "";
+                
+                const div = document.createElement("div");
+                div.className = "item-whitelist";
+                div.dataset.fone = fone;
+                div.dataset.nome = dados.nome || "";
+                
+                let acoes = "";
+                if (!isMaster) {
+                    acoes = `<button class="${ativo ? 'btn-secundario' : 'btn-sucesso'}" onclick="toggleStatusFone('${fone}', ${ativo})">${ativo ? 'Bloquear' : 'Ativar'}</button>
+                             <button class="btn-alerta" style="margin-left:5px" onclick="excluirParticipante('${fone}')">Excluir</button>`;
+                } else {
+                    acoes = `<span style="font-size:10px; color:#888;">MASTER</span>`;
+                }
+                
+                div.innerHTML = `<span>📞 ${fone} <small>${nomeDisplay}</small></span><div>${acoes}</div>`;
+                cont.appendChild(div);
+            });
+        }
+
+        function filtrarListaFones(termo) {
+            const itens = document.querySelectorAll(".item-whitelist");
+            itens.forEach(item => {
+                const fone = item.dataset.fone;
+                const nome = item.dataset.nome.toLowerCase();
+                if (fone.includes(termo) || nome.includes(termo)) {
+                    item.classList.remove("hidden");
+                } else {
+                    item.classList.add("hidden");
+                }
             });
         }
 
@@ -695,6 +721,18 @@
                 database.ref().update(updates).then(() => alert("Participante excluído!"));
             }
         };
+
+        function adicionarNovoJogoAdmin() {
+            const r = document.getElementById("adm-jogo-rodada").value, id = document.getElementById("adm-jogo-id").value;
+            const obj = { id: id, grupo: document.getElementById("adm-jogo-grupo").value.toUpperCase(), data: document.getElementById("adm-jogo-data").value, t1: document.getElementById("adm-jogo-t1").value.toUpperCase(), nome1: document.getElementById("adm-jogo-nome1").value, t2: document.getElementById("adm-jogo-t2").value.toUpperCase(), nome2: document.getElementById("adm-jogo-nome2").value };
+            database.ref(`rodadas/${r}`).once('value').then(snap => {
+                let j = snap.val() || [];
+                if (!Array.isArray(j)) j = Object.values(j);
+                j = j.filter(x => x.id !== id);
+                j.push(obj);
+                database.ref(`rodadas/${r}`).set(j).then(() => alert("Jogo salvo!"));
+            });
+        }
 
         function salvarPalpitesUsuario() {
             const p = {};
@@ -748,7 +786,7 @@
                 Object.keys(part).forEach(k => {
                     const u = part[k];
                     if (u && auth[k] && auth[k].ativo !== false) {
-                        lista.push({ key: k, nome: u.nome, pts: (filtroRankingAtivo === "geral" ? u.pontuacoes : u[`pontos_r${filtroRankingAtivo}`]) || 0, ext: (filtroRankingAtivo === "geral" ? u.exatos : u[`exatos_r${filtroRankingAtivo}`]) || 0, ed: u.ultima_edicao || 0 });
+                        lista.push({ key: k, nome: u.nome, pts: (filtroRankingAtivo === "geral" ? u.pontuacoes : u[`pontos_r${filtroRankingAtiva}`]) || 0, ext: (filtroRankingAtivo === "geral" ? u.exatos : u[`exatos_r${filtroRankingAtivo}`]) || 0, ed: u.ultima_edicao || 0 });
                     }
                 });
                 lista.sort((a,b) => b.pts - a.pts || b.ext - a.ext || a.ed - b.ed);

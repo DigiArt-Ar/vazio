@@ -305,15 +305,31 @@
             garantirTelefonesAdminNoBanco();
             ouvirRodadasDoFirebase(); 
             ouvirRankingDoFirebase();
-            checarUsuarioExistente();
+            
+            // CORREÇÃO: Verificação de bloqueio em tempo real no carregamento
+            const foneSalvo = localStorage.getItem("bolao_telefone");
+            if (foneSalvo) {
+                database.ref('telefones_autorizados/' + foneSalvo).once('value').then(snap => {
+                    if (snap.exists() && snap.val().ativo === false) {
+                        alert("Seu acesso foi bloqueado pelo administrador.");
+                        localStorage.clear();
+                        location.reload();
+                    } else {
+                        checarUsuarioExistente();
+                    }
+                });
+            } else {
+                checarUsuarioExistente();
+            }
 
             document.getElementById("adm-busca-fone").addEventListener("input", (e) => {
                 filtrarListaFones(e.target.value);
             });
 
-            if (localStorage.getItem("bolao_telefone")) {
-                database.ref('telefones_autorizados/' + localStorage.getItem("bolao_telefone")).on('value', snap => {
-                    if (snap.exists() && snap.val().ativo === false) {
+            // Listener de bloqueio dinâmico caso ocorra enquanto o usuário está logado
+            if (foneSalvo) {
+                database.ref('telefones_autorizados/' + foneSalvo + '/ativo').on('value', snap => {
+                    if (snap.exists() && snap.val() === false) {
                         alert("Seu acesso foi bloqueado pelo administrador.");
                         localStorage.clear();
                         location.reload();
@@ -678,7 +694,6 @@
                 
                 const div = document.createElement("div");
                 div.className = "item-whitelist";
-                // Guardamos as informações no dataset para a busca encontrar fácil
                 div.dataset.fone = fone;
                 div.dataset.nome = nome.toLowerCase();
                 
